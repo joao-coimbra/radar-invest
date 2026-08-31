@@ -14,5 +14,11 @@ export async function register() {
     return
   }
 
-  await import("@/server/lib/env")
+  // Chamada explícita: o `env` valida no primeiro acesso, então importar o
+  // módulo já não basta para disparar a checagem. A preguiça existe para o
+  // `next build` não exigir segredo de runtime; aqui, no boot, queremos
+  // exatamente o contrário.
+  const { validateEnv } = await import("@/server/lib/env")
+
+  validateEnv()
 }

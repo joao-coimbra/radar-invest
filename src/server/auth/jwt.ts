@@ -20,7 +20,14 @@ import { isRole, type Role, type Scope, scopesForRole } from "./scopes"
 const ISSUER = "radar-invest"
 const AUDIENCE = "radar-invest-api"
 
-const secret = new TextEncoder().encode(env.JWT_SECRET)
+let cachedSecret: Uint8Array | null = null
+
+/** Preguiçoso pelo mesmo motivo do `env`: o build não deve exigir o segredo. */
+function secret(): Uint8Array {
+  cachedSecret ??= new TextEncoder().encode(env.JWT_SECRET)
+
+  return cachedSecret
+}
 
 export interface AccessTokenClaims {
   sub: string
@@ -47,7 +54,7 @@ export async function signAccessToken(input: {
     .setAudience(AUDIENCE)
     .setIssuedAt()
     .setExpirationTime(`${expiresIn}s`)
-    .sign(secret)
+    .sign(secret())
 
   return { token, expiresIn, scopes }
 }
@@ -63,7 +70,7 @@ export async function verifyAccessToken(
   token: string
 ): Promise<AccessTokenClaims> {
   try {
-    const { payload } = await jwtVerify(token, secret, {
+    const { payload } = await jwtVerify(token, secret(), {
       issuer: ISSUER,
       audience: AUDIENCE,
       algorithms: ["HS256"],

@@ -1,4 +1,4 @@
-import { env } from "@/server/lib/env"
+import { env, isProduction } from "@/server/lib/env"
 import {
   InternalError,
   UpstreamUnauthenticatedError,
@@ -327,14 +327,31 @@ const globalForAirtable = globalThis as typeof globalThis & {
 export const airtable =
   globalForAirtable.__radarInvestAirtable ?? new AirtableClient()
 
-if (env.NODE_ENV !== "production") {
+if (!isProduction) {
   globalForAirtable.__radarInvestAirtable = airtable
 }
 
+/**
+ * Nomes das tabelas, resolvidos no primeiro uso.
+ *
+ * Getters e não valores literais: ler `env` no topo do módulo faria o
+ * `next build` exigir as credenciais de runtime só para percorrer o grafo de
+ * módulos.
+ */
 export const TABLES = {
-  users: env.AIRTABLE_TABLE_USERS,
-  sessions: env.AIRTABLE_TABLE_SESSIONS,
-  assets: env.AIRTABLE_TABLE_ASSETS,
-  quotes: env.AIRTABLE_TABLE_QUOTES,
-  alerts: env.AIRTABLE_TABLE_ALERTS,
-} as const
+  get users() {
+    return env.AIRTABLE_TABLE_USERS
+  },
+  get sessions() {
+    return env.AIRTABLE_TABLE_SESSIONS
+  },
+  get assets() {
+    return env.AIRTABLE_TABLE_ASSETS
+  },
+  get quotes() {
+    return env.AIRTABLE_TABLE_QUOTES
+  },
+  get alerts() {
+    return env.AIRTABLE_TABLE_ALERTS
+  },
+}

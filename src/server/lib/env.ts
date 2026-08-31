@@ -84,23 +84,66 @@ const envSchema = z.object({
   MARKET_CLOSE_HOUR: z.coerce.number().int().min(0).max(23).default(18),
 })
 
-const parsed = envSchema.safeParse(process.env)
-
-if (!parsed.success) {
-  const issues = parsed.error.issues
-    .map((issue) => `  - ${issue.path.join(".") || "(raiz)"}: ${issue.message}`)
-    .join("\n")
-
-  throw new Error(
-    `Variáveis de ambiente inválidas ou ausentes:\n${issues}\n\n` +
-      "Copie o .env.example para .env.local e preencha as chaves acima."
-  )
-}
-
-export const env = parsed.data
-
 export type Env = z.infer<typeof envSchema>
 
-export const isDevelopment = env.NODE_ENV === "development"
-export const isProduction = env.NODE_ENV === "production"
-export const isTest = env.NODE_ENV === "test"
+let cached: Env | null = null
+
+/**
+ * Valida e devolve o ambiente, uma vez por processo.
+ *
+ * A validação é **preguiçosa**, e isso não é detalhe. O `next build` percorre
+ * o grafo de módulos para coletar dados das páginas; se validar no topo do
+ * arquivo, o build passa a exigir os segredos de runtime. Na Vercel isso
+ * quebra de vez com variáveis marcadas como Sensitive, que por desenho só
+ * existem em runtime — o build falha mesmo com tudo corretamente configurado.
+ *
+ * Compilar não deveria precisar da credencial do Airtable de qualquer forma.
+ */
+export function validateEnv(): Env {
+  if (cached) {
+    return cached
+  }
+
+  const parsed = envSchema.safeParse(process.env)
+
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((issue) => `  - ${issue.path.join(".") || "(raiz)"}: ${issue.message}`)
+      .join("\n")
+
+    throw new Error(
+      `Variáveis de ambiente inválidas ou ausentes:\n${issues}\n\n` +
+        "Copie o .env.example para .env.local e preencha as chaves acima."
+    )
+  }
+
+  cached = parsed.data
+
+  return cached
+}
+
+/**
+ * O ambiente, validado no primeiro acesso a qualquer chave.
+ *
+ * A falha continua acontecendo no boot, não numa requisição: o
+ * `src/instrumentation.ts` chama `validateEnv()` antes de o servidor aceitar
+ * a primeira requisição.
+ */
+export const env = new Proxy({} as Env, {
+  get: (_target, key: string) => validateEnv()[key as keyof Env],
+  has: (_target, key: string) => key in validateEnv(),
+  ownKeys: () => Reflect.ownKeys(validateEnv()),
+  getOwnPropertyDescriptor: (_target, key) =>
+    Reflect.getOwnPropertyDescriptor(validateEnv(), key),
+})
+
+/**
+ * Lidas direto do `process.env`, sem passar pelo schema.
+ *
+ * `NODE_ENV` é definida pelo próprio Next e nunca é segredo, então consultá-la
+ * não precisa arrastar a validação inteira — o que permite usá-la em topo de
+ * módulo sem reintroduzir a dependência de build.
+ */
+export const isProduction = process.env.NODE_ENV === "production"
+export const isTest = process.env.NODE_ENV === "test"
+export const isDevelopment = !(isProduction || isTest)
