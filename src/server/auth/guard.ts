@@ -33,11 +33,17 @@ export const authGuard = new Elysia({ name: "auth-guard" }).macro({
 
     return {
       async resolve({
-        headers,
+        request,
       }: {
-        headers: Record<string, string | undefined>
+        request: Request
       }): Promise<{ auth: AccessTokenClaims }> {
-        const header = headers.authorization
+        // Lido do `request`, não do `headers` desestruturado do contexto.
+        // O Elysia decide por análise estática quais campos do contexto montar,
+        // e no modo compilado — o de produção — ele não enxerga o uso aqui
+        // dentro do `resolve` de uma macro: `headers` chega `undefined` e o
+        // 401 vira um TypeError disfarçado de 500. Em dev não aparece, porque
+        // lá o modo é dinâmico e o contexto vem inteiro.
+        const header = request.headers.get("authorization")
 
         if (!header?.startsWith("Bearer ")) {
           throw new UnauthenticatedError()

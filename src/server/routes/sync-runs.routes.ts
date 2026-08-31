@@ -44,9 +44,11 @@ export const syncRunsRoutes = new Elysia({
   tags: ["SyncRuns"],
 }).post(
   "",
-  async ({ headers, set }) => {
-    const cronSecret = headers["x-cron-secret"]
-    const authorization = headers.authorization
+  async ({ request, set }) => {
+    // Pelo `request` e não pelo contexto, pelo mesmo motivo da macro `auth`:
+    // no modo compilado o Elysia pode não montar `headers`.
+    const cronSecret = request.headers.get("x-cron-secret") ?? undefined
+    const authorization = request.headers.get("authorization")
 
     if (secretMatches(cronSecret)) {
       // Agendador autenticado. Segue.
