@@ -1,0 +1,1363 @@
+openapi: 3.0.3
+
+info:
+  title: RadarInvest API
+  version: "1.0.0"
+  description: |
+    Central Inteligente de Monitoramento de Mercado para escritórios de
+    assessoria de investimentos.
+
+    O contrato adota a abordagem API First: a interface pública é definida e
+    aprovada antes da implementação. O contrato descreve o combinado; o código
+    faz cumprir o combinado; o consumidor segue o combinado.
+
+    A aplicação consome duas APIs externas de naturezas diferentes, normaliza
+    os dados em um modelo interno único, aplica regras de negócio, persiste o
+    resultado em banco no-code e dispara alertas automáticos.
+
+  contact:
+    name: RadarInvest
+    url: https://github.com/SEU-USUARIO/radar-invest
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Ambiente de desenvolvimento (Next.js Route Handlers)
+  - url: https://radar-invest.vercel.app/api/v1
+    description: Ambiente de produção (documentação viva em /api/docs)
+
+tags:
+  - name: Auth
+    description: Emissão de credencial de acesso à própria API
+  - name: Assets
+    description: Cadastro dos ativos monitorados pelo escritório
+  - name: Market
+    description: Dados consolidados de mercado gerados a partir das APIs externas
+  - name: Alerts
+    description: Alertas gerados pelas regras de negócio
+  - name: SyncRuns
+    description: Execução do fluxo de coleta, tratamento e persistência
+  - name: Privacy
+    description: Direitos do titular previstos na LGPD
+
+# ---------------------------------------------------------------------------
+# Extensões de documentação. Registram decisões de arquitetura discutidas nos
+# módulos da disciplina. Não ativam comportamento automático no servidor.
+# ---------------------------------------------------------------------------
+
+x-consumed-apis:
+  - name: brapi.dev
+    type: private
+    authentication: Bearer Token
+    rationale: |
+      Fornece cotações de ativos negociados na B3. Exige credencial, o que
+      permite exercitar autenticação real, proteção de chave em variável de
+      ambiente e tratamento de 401 no consumo.
+    documentation: https://brapi.dev/docs
+  - name: BrasilAPI
+    type: public
+    authentication: none
+    rationale: |
+      Fornece indicadores macroeconômicos oficiais (SELIC, CDI, IPCA) sem
+      exigir credencial. Serve de contraponto à API privada e demonstra que
+      APIs públicas são adequadas para dados abertos, mas não sustentam
+      sozinhas uma aplicação crítica de negócio.
+    documentation: https://brasilapi.com.br/docs
+  - name: Airtable
+    type: private
+    authentication: Personal Access Token (Bearer)
+    rationale: |
+      Banco de dados no-code com API REST, escopo por base e tabela e token
+      revogável pelo painel. Permite que o time não técnico enxergue os dados
+      persistidos sem SQL.
+    documentation: https://airtable.com/developers/web/api/introduction
+
+x-roles:
+  descricao: |
+    Papel é a função geral no sistema; escopo é o limite de acesso concreto.
+    O código converte papel em escopos no momento da autenticação.
+  ASSESSOR:
+    - assets.read
+    - assets.write
+    - market.read
+    - alerts.read
+    - users.manage
+  ADMIN:
+    - assets.read
+    - assets.write
+    - market.read
+    - alerts.read
+    - users.manage
+    - syncs.execute
+
+x-cache-policy:
+  rationale: |
+    Sustentabilidade digital: toda requisição consome energia. Cotações
+    repetidas do mesmo ativo no mesmo minuto não justificam nova chamada.
+  key: "quotes:{ticker} e indicators:all — derivação determinística, legível em log"
+  ttlSeconds:
+    quotes: 300
+    indicators: 86400
+  strategy: cache-aside
+
+x-rate-limit-policy:
+  strategy: fixed-window
+  key: authenticated-user
+  limit: 60
+  windowSeconds: 60
+  upstreamBehavior: |
+    Ao receber 429 das APIs externas, o backend aplica espera exponencial e
+    devolve 502 ao consumidor caso as tentativas se esgotem.
+
+x-lgpd:
+  legalBasis: consent
+  minimization: |
+    As respostas devolvem apenas os campos necessários à tela. O e-mail do
+    responsável é mascarado na leitura.
+  implementedRights:
+    - article: "Art. 18, VI"
+      right: erasure
+      endpoint: DELETE /users/{id}
+    - article: "Art. 18, V"
+      right: portability
+      endpoint: GET /users/{id}/export
+    - article: "Art. 8º"
+      right: consent
+      implementation: objeto consentimento no cadastro do responsável
+
+paths:
+
+  # ------------------------------------------------------------------ Auth --
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Cadastrar usuário
+      description: |
+        Cria uma conta de acesso à API. A senha é armazenada apenas como hash
+        e nunca é devolvida em nenhuma resposta.
+
+        O consentimento é registrado no ato do cadastro, com aceite, versão do
+        termo e data, conforme o Art. 8º da LGPD. É esse registro que dá
+        sentido aos direitos de portabilidade e eliminação previstos adiante.
+
+        Novas contas recebem o papel ASSESSOR. A promoção para ADMIN é
+        deliberadamente manual: conceder privilégio por autoatendimento
+        anularia a separação de papéis.
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationInput"
+      responses:
+        "201":
+          description: Usuário cadastrado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/EmailAlreadyRegistered"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Autenticar e obter token de acesso
+      description: |
+        Valida as credenciais do assessor e emite um JWT com os escopos
+        correspondentes ao seu papel.
+
+        Esta é a única operação pública do contrato: é o ponto onde a
+        identidade ainda não existe e passa a existir. Todas as demais exigem
+        o token emitido aqui.
+
+        Credenciais inválidas devolvem 401 com mensagem genérica, sem informar
+        se o erro foi no e-mail ou na senha — distinguir os dois casos
+        permitiria enumerar usuários válidos.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Autenticado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/InvalidCredentials"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotacionar a sessão e emitir novo access token
+      description: |
+        Troca o refresh token por um par novo. O refresh token não viaja no
+        corpo: ele vive num cookie `httpOnly`, `Secure`, `SameSite=Strict`,
+        restrito a `Path=/api/v1/auth`. JavaScript da página nunca o alcança,
+        o que retira o roubo por XSS da mesa.
+
+        Ele também não é um JWT. É um valor opaco de 32 bytes aleatórios,
+        guardado como hash SHA-256 — e não bcrypt ou argon2, porque hash lento
+        existe para compensar senha de baixa entropia; 256 bits aleatórios não
+        são passíveis de força bruta.
+
+        **Rotação com detecção de reuso.** Cada login abre uma família. Cada
+        refresh emite um token novo e marca o anterior como usado. Se um token
+        já usado reaparecer, a conclusão é que ele vazou: a família inteira é
+        revogada e a resposta é 401. Sem essa regra, um token roubado valeria
+        para sempre em paralelo ao do dono legítimo.
+
+        A família expira sete dias depois do login, independente de quantas
+        rotações houve. Rotacionar não estende a sessão indefinidamente.
+      operationId: refreshSession
+      security: []
+      responses:
+        "200":
+          description: Sessão rotacionada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Encerrar a sessão
+      description: |
+        Revoga a família do refresh token e limpa o cookie. Idempotente: sem
+        sessão ativa a resposta continua sendo 200, porque encerrar o que já
+        estava encerrado é o estado desejado.
+
+        Revoga a família inteira, não só o token atual — sair da conta precisa
+        invalidar toda a cadeia de rotação aberta naquele login.
+      operationId: logout
+      security: []
+      responses:
+        "200":
+          description: Sessão encerrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyResponse"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------- Assets --
+  /assets:
+    get:
+      tags: [Assets]
+      summary: Listar ativos monitorados
+      description: |
+        Retorna os ativos monitorados pelo escritório. A resposta é filtrada:
+        cada usuário autenticado recebe apenas os ativos da sua carteira, e o
+        e-mail do responsável vem mascarado.
+      operationId: listAssets
+      security:
+        - bearerAuth: []
+      x-required-scope: assets.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filtra os ativos por situação de monitoramento
+          schema:
+            $ref: "#/components/schemas/MonitoringStatus"
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/AssetType"
+      responses:
+        "200":
+          description: Ativos consultados com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      tags: [Assets]
+      summary: Cadastrar ativo para monitoramento
+      description: |
+        Registra um ativo na carteira monitorada e define o limite de variação
+        percentual que dispara alerta.
+
+        O cadastro exige consentimento explícito do responsável, registrado com
+        data e versão do termo, conforme o Art. 8º da LGPD.
+      operationId: createAsset
+      security:
+        - bearerAuth: []
+      x-required-scope: assets.write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetInput"
+      responses:
+        "201":
+          description: Ativo cadastrado com sucesso
+          headers:
+            Location:
+              description: URI do ativo criado
+              schema:
+                type: string
+                example: /api/v1/assets/PETR4
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/AssetAlreadyExists"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /assets/{ticker}:
+    parameters:
+      - $ref: "#/components/parameters/Ticker"
+
+    get:
+      tags: [Assets]
+      summary: Consultar ativo monitorado
+      description: |
+        Consulta um ativo específico. O código verifica se o ativo pertence à
+        carteira do usuário autenticado antes de devolver os dados. Sem essa
+        checagem a API ficaria exposta ao BOLA: um usuário legitimamente
+        autenticado acessando o recurso de outro.
+      operationId: getAsset
+      security:
+        - bearerAuth: []
+      x-required-scope: assets.read
+      responses:
+        "200":
+          description: Ativo consultado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      tags: [Assets]
+      summary: Remover ativo do monitoramento
+      operationId: deleteAsset
+      security:
+        - bearerAuth: []
+      x-required-scope: assets.write
+      responses:
+        "200":
+          description: Ativo removido com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # --------------------------------------------------------------- Mercado --
+  /indicators:
+    get:
+      tags: [Market]
+      summary: Consultar indicadores macroeconômicos
+      description: |
+        Devolve SELIC, CDI e IPCA já normalizados. Os dados vêm da BrasilAPI,
+        que não exige autenticação, e são servidos a partir do cache quando
+        ainda estão dentro do TTL.
+      operationId: getIndicators
+      security:
+        - bearerAuth: []
+      x-required-scope: market.read
+      responses:
+        "200":
+          description: Indicadores consultados com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndicatorListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "502":
+          $ref: "#/components/responses/UpstreamFailure"
+
+  /market-overview:
+    get:
+      tags: [Market]
+      summary: Gerar panorama consolidado da carteira
+      description: |
+        Recurso central da aplicação. Combina cotações da API privada com os
+        indicadores da API pública, aplica as regras de negócio e devolve uma
+        visão ordenada por prioridade de atenção.
+
+        Este endpoint é a diferença entre consumir e integrar: os dados brutos
+        das duas fontes não respondem a nenhuma pergunta sozinhos; o panorama
+        transforma esses dados em informação acionável para o assessor.
+      operationId: getMarketOverview
+      security:
+        - bearerAuth: []
+      x-required-scope: market.read
+      responses:
+        "200":
+          description: Panorama gerado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketOverviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "502":
+          $ref: "#/components/responses/UpstreamFailure"
+
+  # -------------------------------------------------------- Sincronizações --
+  /sync-runs:
+    post:
+      tags: [SyncRuns]
+      summary: Executar ciclo de sincronização
+      description: |
+        Dispara o fluxo completo: coleta nas APIs externas, normalização,
+        aplicação das regras de negócio, persistência no Airtable e geração
+        dos alertas que ultrapassaram o limite configurado.
+
+        É a automação exigida pelo trabalho. Pode ser acionada pela interface
+        ou por um agendador.
+      operationId: runSync
+      security:
+        - bearerAuth: []
+      x-required-scope: syncs.execute
+      responses:
+        "202":
+          description: Sincronização concluída
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncRunResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "502":
+          $ref: "#/components/responses/UpstreamFailure"
+
+  # --------------------------------------------------------------- Alerts --
+  /alerts:
+    get:
+      tags: [Alerts]
+      summary: Listar alertas gerados
+      operationId: listAlerts
+      security:
+        - bearerAuth: []
+      x-required-scope: alerts.read
+      parameters:
+        - name: ticker
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Z]{4}\d{1,2}$'
+            example: PETR4
+        - name: desde
+          in: query
+          required: false
+          description: Data inicial do período consultado
+          schema:
+            type: string
+            format: date
+            example: "2026-08-01"
+      responses:
+        "200":
+          description: Alertas consultados com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ------------------------------------------------------------ Privacidade --
+  /users/{id}:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+
+    delete:
+      tags: [Privacy]
+      summary: Eliminar dados do titular
+      description: |
+        Direito à eliminação, Art. 18, VI da LGPD. Remove os registros do
+        titular no Airtable, incluindo ativos, alertas e o consentimento.
+
+        Um direito do titular só existe de fato quando vira funcionalidade.
+      operationId: eraseUserData
+      security:
+        - bearerAuth: []
+      x-required-scope: users.manage
+      responses:
+        "200":
+          description: Dados eliminados com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users/{id}/export:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+
+    get:
+      tags: [Privacy]
+      summary: Exportar dados do titular
+      description: |
+        Direito à portabilidade, Art. 18, V da LGPD. Devolve em JSON tudo o
+        que a aplicação armazena sobre o titular. Nesta operação os dados são
+        entregues sem mascaramento, porque o destinatário é o próprio titular.
+      operationId: exportUserData
+      security:
+        - bearerAuth: []
+      x-required-scope: users.manage
+      responses:
+        "200":
+          description: Dados exportados com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDataExportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token JWT enviado no cabeçalho Authorization: Bearer {token}.
+        A ausência ou invalidez do token resulta em 401. A falta do escopo
+        necessário resulta em 403.
+
+  parameters:
+    Ticker:
+      name: ticker
+      in: path
+      required: true
+      description: Código de negociação do ativo na B3
+      schema:
+        type: string
+        pattern: '^[A-Z]{4}\d{1,2}$'
+      example: PETR4
+
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: Identificador do titular dos dados
+      schema:
+        type: string
+        format: uuid
+      example: 3f2b9c7e-5a41-4d0e-9c2f-1b8d6e4a7c30
+
+  responses:
+    BadRequest:
+      description: Corpo ou parâmetros inválidos
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            code: VALIDATION_ERROR
+            message: Um ou mais campos são inválidos.
+
+    Unauthorized:
+      description: Token ausente, inválido ou expirado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            code: UNAUTHENTICATED
+            message: Não foi possível confirmar sua identidade.
+
+    Forbidden:
+      description: Identidade confirmada, mas sem permissão para o recurso
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            code: FORBIDDEN
+            message: Você não tem permissão para acessar este recurso.
+
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            code: NOT_FOUND
+            message: Recurso não encontrado.
+
+    AssetAlreadyExists:
+      description: O ativo já está sendo monitorado nesta carteira
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            code: ASSET_ALREADY_EXISTS
+            message: Este ativo já está sendo monitorado.
+
+    InvalidCredentials:
+      description: E-mail ou senha inválidos
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            code: INVALID_CREDENTIALS
+            message: E-mail ou senha inválidos.
+
+    EmailAlreadyRegistered:
+      description: Já existe uma conta com este e-mail
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            code: EMAIL_ALREADY_REGISTERED
+            message: Já existe uma conta com este e-mail.
+
+    RateLimitExceeded:
+      description: Limite de requisições excedido
+      headers:
+        Retry-After:
+          description: Segundos a aguardar antes de tentar novamente
+          schema:
+            type: integer
+            minimum: 1
+          example: 60
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            code: RATE_LIMIT_EXCEEDED
+            message: Limite de requisições excedido. Tente novamente mais tarde.
+
+    InternalError:
+      description: Falha inesperada ao processar a requisição
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            code: INTERNAL_ERROR
+            message: Não foi possível concluir a operação.
+
+    UpstreamFailure:
+      description: Uma das APIs externas falhou ou não respondeu a tempo
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            credencialInvalida:
+              summary: A API privada rejeitou a credencial
+              value:
+                success: false
+                code: UPSTREAM_UNAUTHENTICATED
+                message: A API de cotações rejeitou a credencial configurada.
+            cotaExcedida:
+              summary: A cota do plano na API privada acabou
+              value:
+                success: false
+                code: UPSTREAM_QUOTA_EXCEEDED
+                message: A cota do plano na API de cotações foi excedida.
+            indisponivel:
+              summary: A API externa está indisponível
+              value:
+                success: false
+                code: UPSTREAM_UNAVAILABLE
+                message: A API de cotações não respondeu após as tentativas.
+
+  schemas:
+
+    LoginInput:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: assessor@escritorio.com.br
+        password:
+          type: string
+          format: password
+          minLength: 8
+          writeOnly: true
+
+    Role:
+      type: string
+      description: Função geral do usuário no sistema
+      enum: [ASSESSOR, ADMIN]
+
+    RegistrationInput:
+      type: object
+      additionalProperties: false
+      required: [name, email, password, consent]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+          example: Ana Ribeiro
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: ana@escritorio.com.br
+        password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+          writeOnly: true
+          description: Armazenada apenas como hash; nunca retornada
+        consent:
+          $ref: "#/components/schemas/Consent"
+
+
+    User:
+      type: object
+      additionalProperties: false
+      description: Representação pública do usuário, sem qualquer dado de credencial
+      required: [id, name, email, role, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Ana Ribeiro
+        email:
+          type: string
+          format: email
+          example: ana@escritorio.com.br
+        role:
+          $ref: "#/components/schemas/Role"
+        createdAt:
+          type: string
+          format: date-time
+
+    Session:
+      type: object
+      additionalProperties: false
+      required: [accessToken, tokenType, expiresIn, scopes, user]
+      properties:
+        accessToken:
+          type: string
+          description: "JWT a ser enviado no header Authorization, no formato Bearer {token}"
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresIn:
+          type: integer
+          description: Validade do token em segundos
+          example: 900
+        scopes:
+          type: array
+          description: Escopos derivados do papel, resolvidos no momento da autenticação
+          items:
+            type: string
+          example: [assets.read, assets.write, market.read, alerts.read, users.manage]
+        user:
+          $ref: "#/components/schemas/User"
+
+    SessionResponse:
+      type: object
+      additionalProperties: false
+      required: [success, message, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/Session"
+
+    MonitoringStatus:
+      type: string
+      enum: [MONITORING, PAUSED]
+
+    AssetType:
+      type: string
+      enum: [STOCK, FII, INDEX]
+
+    AttentionLevel:
+      type: string
+      description: Resultado da regra de negócio aplicada sobre os dados normalizados
+      enum: [NORMAL, WATCH, CRITICAL]
+
+    Consent:
+      type: object
+      additionalProperties: false
+      required: [accepted, termsVersion]
+      description: Registro de consentimento previsto no Art. 8º da LGPD
+      properties:
+        accepted:
+          type: boolean
+          example: true
+        termsVersion:
+          type: string
+          example: "2026-01"
+        recordedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-08-31T13:00:00Z"
+
+    AssetInput:
+      type: object
+      additionalProperties: false
+      required: [ticker, type, alertThresholdPercent, ownerEmail, consent]
+      properties:
+        ticker:
+          type: string
+          pattern: '^[A-Z]{4}\d{1,2}$'
+          example: PETR4
+        type:
+          $ref: "#/components/schemas/AssetType"
+        alertThresholdPercent:
+          type: number
+          format: float
+          minimum: 0.1
+          maximum: 50
+          description: Variação absoluta, em pontos percentuais, que dispara o alerta
+          example: 3.5
+        ownerEmail:
+          type: string
+          format: email
+          maxLength: 254
+          description: E-mail do assessor responsável pelo acompanhamento
+          example: assessor@escritorio.com.br
+        status:
+          $ref: "#/components/schemas/MonitoringStatus"
+        consent:
+          $ref: "#/components/schemas/Consent"
+
+    Asset:
+      type: object
+      additionalProperties: false
+      required: [ticker, type, alertThresholdPercent, ownerEmail, status, createdAt]
+      properties:
+        ticker:
+          type: string
+          example: PETR4
+        type:
+          $ref: "#/components/schemas/AssetType"
+        alertThresholdPercent:
+          type: number
+          format: float
+          example: 3.5
+        ownerId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: |
+            Proprietário do registro. É contra este campo que o código compara
+            a identidade do token antes de devolver o recurso.
+          example: 3f2b9c7e-5a41-4d0e-9c2f-1b8d6e4a7c30
+        ownerEmail:
+          type: string
+          readOnly: true
+          description: E-mail parcialmente mascarado, em atenção ao princípio da minimização
+          example: a******@escritorio.com.br
+        status:
+          $ref: "#/components/schemas/MonitoringStatus"
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2026-08-31T13:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+
+    Quote:
+      type: object
+      additionalProperties: false
+      description: Cotação já normalizada a partir do formato original da API externa
+      required: [ticker, currentPrice, changePercent, currency, source, collectedAt]
+      properties:
+        ticker:
+          type: string
+          example: PETR4
+        companyName:
+          type: string
+          nullable: true
+          example: Petróleo Brasileiro S.A.
+        currentPrice:
+          type: number
+          format: float
+          example: 38.42
+        changePercent:
+          type: number
+          format: float
+          description: |
+            Achatada de results[].data.regularMarketChangePercent na origem
+          example: -4.17
+        currency:
+          type: string
+          example: BRL
+        source:
+          type: string
+          example: brapi.dev
+        collectedAt:
+          type: string
+          format: date-time
+          example: "2026-08-31T13:00:00Z"
+        fromCache:
+          type: boolean
+          description: Indica que o dado veio do cache, sem nova chamada externa
+          example: false
+
+    Indicator:
+      type: object
+      additionalProperties: false
+      required: [name, value, unit, source]
+      properties:
+        name:
+          type: string
+          enum: [SELIC, CDI, IPCA]
+          example: SELIC
+        value:
+          type: number
+          format: float
+          example: 10.5
+        unit:
+          type: string
+          example: "% a.a."
+        source:
+          type: string
+          example: BrasilAPI
+        referenceDate:
+          type: string
+          format: date
+          example: "2026-08-31"
+
+    OverviewItem:
+      type: object
+      additionalProperties: false
+      description: Ativo monitorado cruzado com sua cotação e com a regra de negócio aplicada
+      required: [ticker, quote, attentionLevel, thresholdBreached]
+      properties:
+        rank:
+          type: integer
+          minimum: 1
+          description: Posição no ranking de prioridade de atenção
+          example: 1
+        ticker:
+          type: string
+          example: PETR4
+        quote:
+          $ref: "#/components/schemas/Quote"
+        alertThresholdPercent:
+          type: number
+          format: float
+          example: 3.5
+        thresholdBreached:
+          type: boolean
+          example: true
+        attentionLevel:
+          $ref: "#/components/schemas/AttentionLevel"
+        returnVsCdi:
+          type: number
+          format: float
+          nullable: true
+          description: |
+            Métrica derivada: variação do ativo comparada ao CDI do período.
+            Exemplo de informação que nenhuma das duas APIs entrega pronta.
+          example: -5.02
+
+    MarketOverview:
+      type: object
+      additionalProperties: false
+      required: [generatedAt, indicators, items, summary]
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+          example: "2026-08-31T13:00:00Z"
+        indicators:
+          type: array
+          items:
+            $ref: "#/components/schemas/Indicator"
+        items:
+          type: array
+          description: Ordenado por prioridade de atenção, do mais crítico ao normal
+          items:
+            $ref: "#/components/schemas/OverviewItem"
+        summary:
+          type: object
+          additionalProperties: false
+          required: [totalMonitored, totalCritical, externalCalls]
+          properties:
+            totalMonitored:
+              type: integer
+              example: 12
+            totalCritical:
+              type: integer
+              example: 2
+            externalCalls:
+              type: integer
+              description: Chamadas efetivamente feitas às APIs externas neste ciclo
+              example: 3
+            callsAvoidedByCache:
+              type: integer
+              example: 9
+
+    Alert:
+      type: object
+      additionalProperties: false
+      required: [id, ticker, changePercent, configuredThreshold, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ticker:
+          type: string
+          example: PETR4
+        direction:
+          type: string
+          enum: [UP, DOWN]
+          example: DOWN
+        changePercent:
+          type: number
+          format: float
+          example: -4.17
+        configuredThreshold:
+          type: number
+          format: float
+          example: 3.5
+        notified:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-08-31T13:00:00Z"
+
+    SyncRun:
+      type: object
+      additionalProperties: false
+      required: [id, startedAt, finishedAt, assetsProcessed, recordsPersisted, alertsGenerated]
+      properties:
+        id:
+          type: string
+          format: uuid
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        assetsProcessed:
+          type: integer
+          example: 12
+        recordsPersisted:
+          type: integer
+          description: Registros gravados no banco no-code
+          example: 12
+        alertsGenerated:
+          type: integer
+          example: 2
+        externalCalls:
+          type: integer
+          example: 3
+        upstreamFailures:
+          type: integer
+          example: 0
+
+    UserDataExport:
+      type: object
+      additionalProperties: false
+      description: Conteúdo devolvido no exercício do direito à portabilidade
+      required: [subject, generatedAt]
+      properties:
+        subject:
+          type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+              description: Sem mascaramento, pois o destinatário é o próprio titular
+            role:
+              $ref: "#/components/schemas/Role"
+            consent:
+              $ref: "#/components/schemas/Consent"
+        assets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Asset"
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+        generatedAt:
+          type: string
+          format: date-time
+
+    AssetResponse:
+      type: object
+      additionalProperties: false
+      required: [success, message, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/Asset"
+
+    AssetListResponse:
+      type: object
+      additionalProperties: false
+      required: [success, message, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Asset"
+
+    IndicatorListResponse:
+      type: object
+      additionalProperties: false
+      required: [success, message, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Indicator"
+
+    MarketOverviewResponse:
+      type: object
+      additionalProperties: false
+      required: [success, message, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/MarketOverview"
+
+    AlertListResponse:
+      type: object
+      additionalProperties: false
+      required: [success, message, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+
+    SyncRunResponse:
+      type: object
+      additionalProperties: false
+      required: [success, message, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/SyncRun"
+
+    UserDataExportResponse:
+      type: object
+      additionalProperties: false
+      required: [success, message, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/UserDataExport"
+
+    EmptyResponse:
+      type: object
+      additionalProperties: false
+      required: [success, message, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        data:
+          type: object
+          nullable: true
+          example: null
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [success, code, message]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        code:
+          type: string
+          description: Código estável, legível por máquina, usado pelo consumidor para decidir o tratamento
+          example: UNAUTHENTICATED
+        message:
+          type: string
+          description: Mensagem legível por humanos, sem expor detalhes internos do sistema
+        details:
+          type: array
+          nullable: true
+          description: Lista opcional de campos inválidos
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              field:
+                type: string
+                example: limiteVariacaoPercentual
+              message:
+                type: string
+                example: Deve ser um número entre 0.1 e 50.
