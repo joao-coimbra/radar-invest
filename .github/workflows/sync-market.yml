@@ -1,0 +1,75 @@
+name: Sincronização de mercado
+
+# Agendador do ciclo de coleta. Roda de 15 em 15 minutos durante o pregão da
+# B3, em dias úteis.
+#
+# O cron do GitHub usa UTC. Brasília é UTC−3, então o pregão das 10h às 18h
+# equivale a 13h–21h UTC; `13-20` cobre até 20:45 UTC = 17:45 em Brasília, que
+# é a última janela ainda dentro do pregão.
+#
+# Fora dessa janela o próprio backend encerra o ciclo sem chamar nenhuma API
+# externa — a checagem em `isMarketOpen()` é a autoridade. O agendamento aqui
+# é a primeira barreira, não a única: confiar apenas no cron deixaria o
+# endpoint aberto a disparos manuais fora de hora.
+
+on:
+  schedule:
+    - cron: "*/15 13-20 * * 1-5"
+  # Permite disparar pelo botão "Run workflow" na aba Actions — útil para
+  # demonstrar o ciclo ao vivo sem esperar o próximo agendamento.
+  workflow_dispatch:
+
+# Se um ciclo ainda estiver rodando quando o próximo for agendado, o novo
+# espera em vez de rodar em paralelo. Dois ciclos simultâneos disputariam as
+# 5 requisições por segundo do Airtable e se derrubariam mutuamente com 429.
+concurrency:
+  group: sync-market
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Disparar ciclo de sincronização
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::Faltam os secrets APP_URL e/ou CRON_SECRET no repositório."
+            exit 1
+          fi
+
+          # O corpo vai para stdout e o status para uma variável separada, para
+          # o log do Actions mostrar o resultado do ciclo mesmo em caso de erro.
+          status=$(curl --silent --show-error \
+            --max-time 120 \
+            --write-out '%{http_code}' \
+            --output /tmp/sync-response.json \
+            --request POST "${APP_URL}/api/v1/sync-runs" \
+            --header "x-cron-secret: ${CRON_SECRET}" \
+            --header 'Content-Type: application/json')
+
+          echo "HTTP ${status}"
+          cat /tmp/sync-response.json
+          echo
+
+          if [ "${status}" != "202" ]; then
+            echo "::error::Ciclo falhou com HTTP ${status}"
+            exit 1
+          fi
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "### Ciclo de sincronização"
+            echo ""
+            echo '```json'
+            cat /tmp/sync-response.json 2>/dev/null || echo "sem resposta"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
