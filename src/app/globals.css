@@ -23,6 +23,14 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  /* Sinal em dois eixos. Direção usa a convenção que o assessor já lê — sobe
+     verde, cai vermelho. Nível de atenção usa âmbar e vermelho no rótulo, e
+     principalmente o peso da régua à esquerda. Misturar os dois num só eixo
+     faria uma alta de 5% aparecer em vermelho por ser "crítica". */
+  --color-signal-up: var(--signal-up);
+  --color-signal-down: var(--signal-down);
+  --color-signal-critical: var(--signal-critical);
+  --color-signal-watch: var(--signal-watch);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -48,31 +56,39 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Paleta de instrumento: papel frio e tinta ardósia, não cinza neutro nem
+   creme quente. A saturação fica reservada ao sinal — se tudo tem cor, nada
+   tem. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.984 0.003 250);
+  --foreground: oklch(0.21 0.025 255);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.21 0.025 255);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --popover-foreground: oklch(0.21 0.025 255);
+  --primary: oklch(0.47 0.19 264);
+  --primary-foreground: oklch(0.99 0.002 250);
+  --secondary: oklch(0.955 0.006 250);
+  --secondary-foreground: oklch(0.21 0.025 255);
+  --muted: oklch(0.965 0.005 250);
+  --muted-foreground: oklch(0.52 0.02 253);
+  --accent: oklch(0.95 0.015 258);
+  --accent-foreground: oklch(0.3 0.06 262);
+  --destructive: oklch(0.52 0.18 25);
+  --border: oklch(0.912 0.007 252);
+  --input: oklch(0.912 0.007 252);
+  --ring: oklch(0.47 0.19 264);
+  --signal-up: oklch(0.5 0.11 162);
+  --signal-down: oklch(0.53 0.18 25);
+  --signal-critical: oklch(0.53 0.18 25);
+  --signal-watch: oklch(0.6 0.12 68);
+  --chart-1: oklch(0.47 0.19 264);
+  --chart-2: oklch(0.5 0.11 162);
+  --chart-3: oklch(0.6 0.12 68);
+  --chart-4: oklch(0.53 0.18 25);
+  --chart-5: oklch(0.52 0.02 253);
+  /* Cantos discretos: um painel de dados não é um cartão de marketing. */
+  --radius: 0.375rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -84,29 +100,33 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --background: oklch(0.19 0.02 258);
+  --foreground: oklch(0.95 0.005 250);
+  --card: oklch(0.235 0.022 258);
+  --card-foreground: oklch(0.95 0.005 250);
+  --popover: oklch(0.235 0.022 258);
+  --popover-foreground: oklch(0.95 0.005 250);
+  --primary: oklch(0.68 0.15 262);
+  --primary-foreground: oklch(0.18 0.03 262);
+  --secondary: oklch(0.29 0.025 258);
+  --secondary-foreground: oklch(0.95 0.005 250);
+  --muted: oklch(0.28 0.02 258);
+  --muted-foreground: oklch(0.7 0.02 253);
+  --accent: oklch(0.32 0.045 260);
+  --accent-foreground: oklch(0.93 0.02 258);
+  --destructive: oklch(0.65 0.17 25);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.68 0.15 262);
+  --signal-up: oklch(0.68 0.12 162);
+  --signal-down: oklch(0.68 0.16 25);
+  --signal-critical: oklch(0.68 0.16 25);
+  --signal-watch: oklch(0.75 0.13 72);
+  --chart-1: oklch(0.68 0.15 262);
+  --chart-2: oklch(0.68 0.12 162);
+  --chart-3: oklch(0.75 0.13 72);
+  --chart-4: oklch(0.68 0.16 25);
+  --chart-5: oklch(0.7 0.02 253);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -126,5 +146,36 @@
   }
   html {
     @apply font-sans;
+  }
+  /* Números em tabela precisam alinhar coluna a coluna. Sem isto, uma variação
+     de -4,17% e outra de -11,08% desalinham a vírgula e o olho perde a
+     comparação, que é a única razão de a tabela existir. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+}
+
+@layer utilities {
+  /* Régua de atenção: a assinatura da interface. A espessura codifica
+     urgência, então varrer a borda esquerda já responde à pergunta do
+     assessor antes de ele ler qualquer número. */
+  .rule-critical {
+    box-shadow: inset 3px 0 0 0 var(--signal-critical);
+  }
+  .rule-watch {
+    box-shadow: inset 3px 0 0 0 var(--signal-watch);
+  }
+  .rule-normal {
+    box-shadow: inset 3px 0 0 0 var(--border);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
