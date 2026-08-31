@@ -1,3 +1,4 @@
+import { bearer } from "@elysiajs/bearer"
 import { Elysia } from "elysia"
 import { ForbiddenError, UnauthenticatedError } from "@/server/lib/errors"
 import { type AccessTokenClaims, verifyAccessToken } from "./jwt"
@@ -24,48 +25,49 @@ import type { Scope } from "./scopes"
  * A distinção 401/403 é deliberada: 401 é "não sei quem você é", 403 é "sei
  * quem você é e não pode". Devolver 401 no segundo caso faria o cliente tentar
  * autenticar de novo à toa.
+ *
+ * A extração do token fica com o `@elysiajs/bearer`, que registra um `derive`
+ * global. Ler `headers` direto no `resolve` da macro não funciona em
+ * produção: o Elysia decide por análise estática quais campos do contexto
+ * montar, e no modo compilado não enxerga o uso ali dentro — `headers` chega
+ * `undefined` e o 401 vira um TypeError disfarçado de 500. Em desenvolvimento
+ * o modo é dinâmico e o problema não aparece.
  */
-export const authGuard = new Elysia({ name: "auth-guard" }).macro({
-  auth(requiredScope: Scope | boolean) {
-    if (!requiredScope) {
-      return {}
-    }
+export const authGuard = new Elysia({ name: "auth-guard" })
+  .use(bearer())
+  .macro({
+    auth(requiredScope: Scope | boolean) {
+      if (!requiredScope) {
+        return {}
+      }
 
-    return {
-      async resolve({
-        request,
-      }: {
-        request: Request
-      }): Promise<{ auth: AccessTokenClaims }> {
-        // Lido do `request`, não do `headers` desestruturado do contexto.
-        // O Elysia decide por análise estática quais campos do contexto montar,
-        // e no modo compilado — o de produção — ele não enxerga o uso aqui
-        // dentro do `resolve` de uma macro: `headers` chega `undefined` e o
-        // 401 vira um TypeError disfarçado de 500. Em dev não aparece, porque
-        // lá o modo é dinâmico e o contexto vem inteiro.
-        const header = request.headers.get("authorization")
+      return {
+        async resolve({
+          bearer: token,
+        }: {
+          bearer?: string
+        }): Promise<{ auth: AccessTokenClaims }> {
+          if (!token) {
+            throw new UnauthenticatedError()
+          }
 
-        if (!header?.startsWith("Bearer ")) {
-          throw new UnauthenticatedError()
-        }
+          const claims = await verifyAccessToken(token)
 
-        const claims = await verifyAccessToken(header.slice("Bearer ".length))
+          if (
+            typeof requiredScope === "string" &&
+            !claims.scopes.includes(requiredScope)
+          ) {
+            throw new ForbiddenError()
+          }
 
-        if (
-          typeof requiredScope === "string" &&
-          !claims.scopes.includes(requiredScope)
-        ) {
-          throw new ForbiddenError()
-        }
-
-        return { auth: claims }
-      },
-      detail: {
-        security: [{ bearerAuth: [] }],
-        ...(typeof requiredScope === "string"
-          ? { "x-required-scope": requiredScope }
-          : {}),
-      },
-    }
-  },
-})
+          return { auth: claims }
+        },
+        detail: {
+          security: [{ bearerAuth: [] }],
+          ...(typeof requiredScope === "string"
+            ? { "x-required-scope": requiredScope }
+            : {}),
+        },
+      }
+    },
+  })
