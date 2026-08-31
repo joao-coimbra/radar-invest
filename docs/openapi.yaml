@@ -22,7 +22,7 @@ info:
 servers:
   - url: http://localhost:3000/api/v1
     description: Ambiente de desenvolvimento (Next.js Route Handlers)
-  - url: https://radar-invest.vercel.app/api/v1
+  - url: https://radar-invest.joaocoimbra.dev/api/v1
     description: Ambiente de produção (documentação viva em /api/docs)
 
 tags:

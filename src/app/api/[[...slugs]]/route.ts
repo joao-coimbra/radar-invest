@@ -81,8 +81,12 @@ const app = new Elysia({ prefix: "/api" })
         },
         servers: [
           {
+            url: "https://radar-invest.joaocoimbra.dev/api/v1",
+            description: "Produção",
+          },
+          {
             url: "http://localhost:3000/api/v1",
-            description: "Ambiente de desenvolvimento",
+            description: "Desenvolvimento",
           },
         ],
         tags: [

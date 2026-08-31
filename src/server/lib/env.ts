@@ -81,7 +81,10 @@ const envSchema = z.object({
 
   // -------------------------------------------- Janela de pregão (B3, BRT)
   MARKET_OPEN_HOUR: z.coerce.number().int().min(0).max(23).default(10),
-  MARKET_CLOSE_HOUR: z.coerce.number().int().min(0).max(23).default(18),
+  // Vai até 24 porque o limite é exclusivo: `hora < MARKET_CLOSE_HOUR`. Com
+  // teto 23 não havia como expressar "até a meia-noite", e a última hora do
+  // dia ficava inalcançável.
+  MARKET_CLOSE_HOUR: z.coerce.number().int().min(1).max(24).default(18),
 })
 
 export type Env = z.infer<typeof envSchema>
