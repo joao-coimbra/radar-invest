@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# A CLI da Vercel acrescenta `.vercel` e `.env*` aqui no fim a cada `vercel
+# link`. Regra posterior vence, e um `.env*` solto no fim anularia o
+# `!.env.example` lá em cima — que precisa continuar versionado, porque é o
+# arquivo que documenta todas as chaves para quem for rodar o projeto.
+!.env.example
