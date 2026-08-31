@@ -33,7 +33,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground sm:inline">
+            {/* `nowrap` e só a partir de `md`: entre 640 e 768 a navegação já
+                ocupa a linha, e o nome quebrava em duas. */}
+            <span className="hidden max-w-40 truncate whitespace-nowrap text-sm text-muted-foreground md:inline">
               {user.name}
             </span>
             {user.role === "ADMIN" ? (

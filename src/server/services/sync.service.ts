@@ -62,12 +62,46 @@ export function isMarketOpen(now = new Date()): boolean {
   return hour >= env.MARKET_OPEN_HOUR && hour < env.MARKET_CLOSE_HOUR
 }
 
+/** Teto do Discord para `content`; o Slack aceita bem mais. */
+const MAX_MESSAGE_LENGTH = 1800
+
+/**
+ * Monta o resumo legível por humano.
+ *
+ * Quem recebe o alerta está no celular, fora do sistema. Precisa saber o que
+ * aconteceu sem abrir nada — por isso o texto traz ticker, direção, variação
+ * e o limite que foi rompido, e não um "você tem 2 novos alertas".
+ */
+function summarize(alerts: CreateAlertInput[]): string {
+  const header =
+    alerts.length === 1
+      ? "RadarInvest — 1 ativo rompeu o limite"
+      : `RadarInvest — ${alerts.length} ativos romperam o limite`
+
+  const lines = alerts.map((alert) => {
+    const direction = alert.direction === "UP" ? "subiu" : "caiu"
+    const change = Math.abs(alert.changePercent).toFixed(2).replace(".", ",")
+    const threshold = alert.configuredThreshold.toFixed(2).replace(".", ",")
+
+    return `• ${alert.ticker} ${direction} ${change}% (limite ${threshold}%)`
+  })
+
+  return [header, ...lines].join("\n").slice(0, MAX_MESSAGE_LENGTH)
+}
+
 /**
  * Notifica o canal externo. Falha aqui não derruba o ciclo.
  *
  * O alerta já está gravado e já aparece no painel quando esta função é
  * chamada; o webhook é o canal, não o alerta. Deixar a sincronização inteira
  * falhar porque um endpoint de terceiro caiu perderia as cotações coletadas.
+ *
+ * O corpo carrega três representações do mesmo evento, de propósito: `content`
+ * é o campo que o Discord renderiza, `text` é o do Slack, e `alerts` é o dado
+ * estruturado para qualquer consumidor programático. Assim o mesmo endpoint
+ * serve aos três sem o servidor precisar saber para onde está mandando —
+ * detectar o destino pela URL seria adivinhação que quebra no primeiro
+ * self-hosted.
  */
 async function notify(
   alerts: CreateAlertInput[]
@@ -85,12 +119,23 @@ async function notify(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        content: summarize(alerts),
+        text: summarize(alerts),
         source: "radar-invest",
         generatedAt: new Date().toISOString(),
         alerts,
       }),
       signal: AbortSignal.timeout(5000),
     })
+
+    if (!response.ok) {
+      // O corpo da resposta diz o que o canal recusou — sem ele, um webhook
+      // mal configurado vira só "não entregou".
+      const body = await response.text().catch(() => "")
+      console.error(
+        `[radar-invest] webhook recusou o alerta: HTTP ${response.status} ${body.slice(0, 200)}`
+      )
+    }
 
     return { attempted: true, delivered: response.ok }
   } catch (error) {

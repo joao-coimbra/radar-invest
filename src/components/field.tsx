@@ -21,7 +21,12 @@ export function Field({
   className?: string
 }) {
   return (
-    <div className={cn("grid gap-1.5", className)}>
+    // Coluna flex, e não grid. Num grid, quando a linha é esticada pelo campo
+    // vizinho de dica mais alta, a sobra de altura é distribuída entre as
+    // linhas internas e empurra o controle para baixo — dois campos lado a
+    // lado saem desalinhados sem que nada no CSS deles seja diferente. Em
+    // coluna flex os filhos empilham a partir do topo e ignoram a sobra.
+    <div className={cn("flex flex-col gap-1.5", className)}>
       <label
         htmlFor={htmlFor}
         className="text-[0.8125rem] font-medium text-foreground"
@@ -30,7 +35,9 @@ export function Field({
       </label>
       {children}
       {hint ? (
-        <p className="text-xs leading-relaxed text-muted-foreground">{hint}</p>
+        <p className="text-xs leading-relaxed text-muted-foreground text-pretty">
+          {hint}
+        </p>
       ) : null}
     </div>
   )
