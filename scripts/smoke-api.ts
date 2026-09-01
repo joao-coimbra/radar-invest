@@ -94,6 +94,26 @@ const checks: Check[] = [
 
 console.log(`\nAlvo: ${BASE}\n`)
 
+/**
+ * Confere que o alvo responde, antes de tudo.
+ *
+ * Sem isto, um servidor desligado produzia vinte e quatro linhas idênticas de
+ * falha e uma exceção não tratada no fim — o operador tinha que deduzir a
+ * causa. Um diagnóstico que não distingue "está quebrado" de "não está no ar"
+ * faz o leitor procurar bug onde não há.
+ */
+try {
+  await fetch(`${BASE}/api/health`, {
+    method: "HEAD",
+    signal: AbortSignal.timeout(10_000),
+  })
+} catch {
+  console.error(`Nada respondeu em ${BASE}.\n`)
+  console.error("  Local:     bun run dev")
+  console.error("  Produção:  bun run smoke:api https://seu-dominio\n")
+  process.exit(1)
+}
+
 let failed = 0
 
 for (const check of checks) {
@@ -109,7 +129,9 @@ for (const check of checks) {
     })
     status = response.status
   } catch (error) {
-    status = error instanceof Error ? error.name : "erro"
+    // O motivo, não só "Error": timeout e conexão recusada pedem ações
+    // diferentes de quem está lendo.
+    status = error instanceof Error ? (error.name === "TimeoutError" ? "timeout" : "sem resposta") : "erro"
   }
 
   const ok = status === check.expect
@@ -125,15 +147,26 @@ for (const check of checks) {
 
 // A documentação viva é entregável: se ela cair, o contrato deixa de ser
 // verificável por quem consome a API.
-const spec = await fetch(`${BASE}/api/docs/json`).then((r) => r.json())
-const paths = Object.keys(spec.paths ?? {}).length
-const expectedPaths = 12
+const EXPECTED_PATHS = 12
 
-if (paths !== expectedPaths) {
+try {
+  const spec = (await fetch(`${BASE}/api/docs/json`, {
+    signal: AbortSignal.timeout(30_000),
+  }).then((response) => response.json())) as { paths?: Record<string, unknown> }
+
+  const paths = Object.keys(spec.paths ?? {}).length
+
+  if (paths === EXPECTED_PATHS) {
+    console.log(`  ok    ${paths} caminhos publicados em /api/docs`)
+  } else {
+    failed++
+    console.log(`  FALHA ${paths} caminhos na spec, esperado ${EXPECTED_PATHS}`)
+  }
+} catch (error) {
   failed++
-  console.log(`  FALHA ${paths} caminhos na spec, esperado ${expectedPaths}`)
-} else {
-  console.log(`  ok    ${paths} caminhos publicados em /api/docs`)
+  console.log(
+    `  FALHA /api/docs/json não respondeu: ${error instanceof Error ? error.message : error}`
+  )
 }
 
 console.log(
