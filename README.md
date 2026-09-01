@@ -611,8 +611,8 @@ O botão *Run workflow* na aba Actions dispara o ciclo na hora.
 
 ## Stack e estrutura
 
-Next.js 16 (App Router) · TypeScript · Tailwind 4 · Elysia · TypeBox · Zod ·
-jose · Airtable · Bun
+Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn sobre Base UI ·
+Elysia · TypeBox · Zod · jose · Airtable · Bun
 
 ```
 src/

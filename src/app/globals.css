@@ -1,5 +1,10 @@
 @import "tailwindcss";
 @import "shadcn/tailwind.css";
+/* Faz parte da cadeia do shadcn, junto com o lucide-react das dependências.
+   Nenhuma tela usa classe `animate-*` hoje, mas todo componente do registry
+   que traga overlay ou transição depende desta folha. Não remova por parecer
+   sem uso: o `shadcn add` seguinte quebraria sem erro óbvio. */
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 

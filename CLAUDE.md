@@ -46,6 +46,11 @@ que por desenho só existem em runtime.
 A interface usa **Server Actions**, não cliente HTTP tipado. O `@elysiajs/eden`
 foi removido por não ter uso.
 
+`lucide-react` e `tw-animate-css` continuam nas dependências mesmo sem uso
+direto hoje: fazem parte da cadeia do shadcn, e o próximo `shadcn add` que
+trouxer ícone ou transição depende das duas. Não as remova por parecerem
+órfãs numa varredura.
+
 ## Estrutura
 
 ```
