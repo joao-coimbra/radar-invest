@@ -201,6 +201,13 @@ async function reportCycle(summary: {
     return
   }
 
+  // Ciclo que não fez nada não vira mensagem. São 32 execuções por dia durante
+  // o pregão: anunciar todas encheria o canal de "0 alertas" e faria alguém
+  // silenciá-lo — perdendo junto os avisos que importam.
+  if (summary.alertsGenerated === 0 && summary.recordsPersisted === 0) {
+    return
+  }
+
   const message =
     `RadarInvest — ciclo concluído: ${summary.assetsProcessed} ativo(s), ` +
     `${summary.alertsGenerated} alerta(s), ` +

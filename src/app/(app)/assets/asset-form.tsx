@@ -44,7 +44,7 @@ export function AssetForm({ defaultEmail }: { defaultEmail: string }) {
 
           {/* `items-start` no par: sem isso, o campo sem dica é esticado pela
               altura do vizinho e o controle desce. */}
-          <div className="grid items-start gap-4 sm:col-span-2 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]">
+          <div className="grid items-start gap-4 sm:col-span-2 sm:grid-cols-[minmax(0,11rem)_minmax(0,26rem)]">
             <Field
               label="Código na B3"
               htmlFor="ticker"
@@ -89,7 +89,7 @@ export function AssetForm({ defaultEmail }: { defaultEmail: string }) {
         <fieldset className="contents">
           <legend className="sr-only">Regra de monitoramento</legend>
 
-          <div className="grid items-start gap-4 sm:col-span-2 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]">
+          <div className="grid items-start gap-4 sm:col-span-2 sm:grid-cols-[minmax(0,11rem)_minmax(0,26rem)]">
             <Field
               label="Limite de variação"
               htmlFor="alertThresholdPercent"
