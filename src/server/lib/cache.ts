@@ -57,37 +57,8 @@ class TtlCache {
     this.store.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 })
   }
 
-  /** Cache-aside numa chamada só, para quem busca um valor único. */
-  async getOrSet<T>(
-    key: string,
-    ttlSeconds: number,
-    produce: () => Promise<T>
-  ): Promise<{ value: T; fromCache: boolean }> {
-    const cached = this.get<T>(key)
-
-    if (cached !== null) {
-      return { value: cached, fromCache: true }
-    }
-
-    const value = await produce()
-    this.set(key, value, ttlSeconds)
-
-    return { value, fromCache: false }
-  }
-
-  delete(key: string): void {
-    this.store.delete(key)
-  }
-
   stats(): CacheStats {
     return { hits: this.hits, misses: this.misses, size: this.store.size }
-  }
-
-  /** Zera valores e contadores. Serve a teste e ao painel. */
-  reset(): void {
-    this.store.clear()
-    this.hits = 0
-    this.misses = 0
   }
 }
 

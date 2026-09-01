@@ -350,6 +350,22 @@ necessidade.
 `GET /assets/{ticker}` de um ativo alheio devolve **404**, não 403. Devolver 403
 confirmaria que aquele ticker existe na carteira de alguém.
 
+### Limite de requisições
+
+Janela fixa de 60 requisições por minuto, contada em memória, com duas chaves.
+
+Rotas autenticadas contam pelo **id do usuário**: o limite acompanha a
+identidade e não a rede, então trocar de rede não devolve cota e vários
+assessores atrás do mesmo IP do escritório não disputam entre si.
+
+Cadastro e login contam pelo **e-mail informado**, porque ali ainda não existe
+identidade e o alvo de um ataque é uma conta específica. Contar por e-mail
+limita o quanto uma conta pode ser martelada sem recorrer ao IP, que este
+projeto decidiu não coletar.
+
+A resposta traz o header `Retry-After` com os segundos restantes. Recusar sem
+dizer quando tentar de novo empurra o cliente para uma repetição imediata.
+
 ### Papéis e escopos
 
 | Papel | Escopos |
@@ -559,6 +575,21 @@ curl -X POST http://localhost:3000/api/v1/sync-runs -H "x-cron-secret: SEU_CRON_
 
 No PowerShell, use `curl.exe` — `curl` lá é apelido de `Invoke-WebRequest`.
 
+### Verificar a API
+
+```bash
+bun run smoke:api
+```
+
+Percorre as oito rotas protegidas sem credencial e com credencial inválida,
+testa os dois modos de autenticação do agendador, confirma que o token não é
+aceito por query string e confere os caminhos publicados na documentação.
+Aceita uma URL como argumento para rodar contra produção.
+
+Ele existe por causa de um defeito real: uma mudança na extração do token fez
+seis das oito rotas devolverem 500 no lugar de 401, e a verificação da época
+cobria apenas duas.
+
 ### Automação em produção
 
 O agendador é um workflow do GitHub Actions, em
@@ -596,11 +627,11 @@ src/
 │   ├── repositories/   ← acesso às tabelas do Airtable
 │   ├── integrations/   ← um adaptador por API externa
 │   ├── auth/           ← JWT, senha, sessões, escopos, guard
-│   └── lib/            ← env, cache, http, erros, máscara
+│   └── lib/            ← env, cache, http, erros, máscara, rate limit
 └── instrumentation.ts  ← valida o ambiente no boot
 
 docs/openapi.yaml       ← o contrato, escrito antes da implementação
-scripts/                ← setup e diagnóstico do Airtable, captura de telas
+scripts/                ← setup do Airtable, verificação da API, prints, PDF
 ```
 
 ### API First

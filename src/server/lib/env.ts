@@ -148,5 +148,3 @@ export const env = new Proxy({} as Env, {
  * módulo sem reintroduzir a dependência de build.
  */
 export const isProduction = process.env.NODE_ENV === "production"
-export const isTest = process.env.NODE_ENV === "test"
-export const isDevelopment = !(isProduction || isTest)

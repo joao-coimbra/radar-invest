@@ -92,10 +92,6 @@ class AirtableClient {
     return { calls: this.calls }
   }
 
-  resetStats(): void {
-    this.calls = 0
-  }
-
   private schedule<T>(task: () => Promise<T>): Promise<T> {
     const run = this.tail.then(async () => {
       const waitFor = this.lastRequestAt + MIN_INTERVAL_MS - Date.now()

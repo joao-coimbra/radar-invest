@@ -45,7 +45,7 @@ export interface SyncRunResult {
  * roda em UTC na Vercel. Deixar o fuso implícito é como esse tipo de bug
  * nasce.
  */
-export function isMarketOpen(now = new Date()): boolean {
+function isMarketOpen(now = new Date()): boolean {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Sao_Paulo",
     weekday: "short",

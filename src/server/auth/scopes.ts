@@ -7,7 +7,7 @@
  * explícito que promover alguém a ADMIN só vale a partir do próximo login.
  */
 
-export const ROLES = ["ASSESSOR", "ADMIN"] as const
+const ROLES = ["ASSESSOR", "ADMIN"] as const
 export type Role = (typeof ROLES)[number]
 
 export const SCOPES = [
@@ -28,7 +28,7 @@ const ASSESSOR_SCOPES: Scope[] = [
   "users.manage",
 ]
 
-export const ROLE_SCOPES: Record<Role, Scope[]> = {
+const ROLE_SCOPES: Record<Role, Scope[]> = {
   ASSESSOR: ASSESSOR_SCOPES,
   // ADMIN é ASSESSOR mais o direito de disparar sincronização. A promoção é
   // manual de propósito: conceder privilégio por autoatendimento anularia a

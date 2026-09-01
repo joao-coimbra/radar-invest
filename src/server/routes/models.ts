@@ -36,7 +36,7 @@ export const protectedErrors = {
   500: errorResponse,
 }
 
-export const TICKER_PATTERN = "^[A-Z]{4}\\d{1,2}$"
+const TICKER_PATTERN = "^[A-Z]{4}\\d{1,2}$"
 
 export const tickerSchema = t.String({
   pattern: TICKER_PATTERN,

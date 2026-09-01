@@ -61,7 +61,7 @@ export function thresholdBreached(
   return Math.abs(changePercent) >= threshold
 }
 
-export function attentionLevelFor(
+function attentionLevelFor(
   changePercent: number,
   threshold: number
 ): AttentionLevel {
@@ -113,7 +113,7 @@ const LEVEL_ORDER: Record<AttentionLevel, number> = {
  * A ordenação é o produto: primeiro o nível, depois a magnitude do movimento
  * dentro do nível. O assessor lê de cima para baixo e para quando quiser.
  */
-export function buildOverviewItems(
+function buildOverviewItems(
   assets: AssetRecord[],
   quotes: Quote[],
   indicators: Indicator[]

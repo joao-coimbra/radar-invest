@@ -71,21 +71,13 @@ class LimitadorJanelaFixa {
     }
   }
 
-  /** Serve a teste. Zerar em produção abriria uma forma de burlar o limite. */
-  reset(): void {
-    this.janelas.clear()
-  }
-
-  get tamanho(): number {
-    return this.janelas.size
-  }
 }
 
 const globalForLimiter = globalThis as typeof globalThis & {
   __radarInvestRateLimit?: LimitadorJanelaFixa
 }
 
-export const rateLimiter =
+const rateLimiter =
   globalForLimiter.__radarInvestRateLimit ?? new LimitadorJanelaFixa()
 
 if (!isProduction) {
