@@ -1,0 +1,1257 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>RadarInvest — Parte Teórica</title>
+<style>
+/* =========================================================================
+   Formatação conforme ABNT NBR 14724:2011.
+   Margens 3 cm superior e esquerda, 2 cm inferior e direita. Arial 12,
+   entrelinhas 1,5, texto justificado, recuo de 1,25 cm na primeira linha.
+   ========================================================================= */
+
+@page {
+  size: A4;
+  margin: 3cm 2cm 2cm 3cm;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 12pt; }
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  color: #000;
+  text-align: justify;
+  hyphens: auto;
+}
+
+p { margin: 0 0 0 0; text-indent: 1.25cm; }
+p + p { margin-top: 0; }
+
+/* Seções primárias começam em página nova, em caixa alta e negrito. */
+h1 {
+  font-size: 12pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-align: left;
+  text-indent: 0;
+  margin: 0 0 1.5em 0;
+  page-break-before: always;
+  page-break-after: avoid;
+}
+
+h2 {
+  font-size: 12pt;
+  font-weight: bold;
+  text-align: left;
+  text-indent: 0;
+  margin: 1.5em 0 0.6em 0;
+  page-break-after: avoid;
+}
+
+h3 {
+  font-size: 12pt;
+  font-weight: normal;
+  font-style: italic;
+  text-align: left;
+  text-indent: 0;
+  margin: 1.2em 0 0.5em 0;
+  page-break-after: avoid;
+}
+
+/* ------------------------------------------------------------------ capa */
+.capa {
+  height: 24cm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  text-transform: uppercase;
+  page-break-after: always;
+}
+.capa p { text-indent: 0; margin: 0; }
+.capa .instituicao { font-weight: bold; margin-bottom: 0.4em; }
+.capa .curso { margin-bottom: 0.4em; }
+.capa .autor { margin-top: 4cm; }
+.capa .titulo {
+  margin-top: auto;
+  margin-bottom: auto;
+  font-weight: bold;
+  font-size: 14pt;
+  line-height: 1.5;
+}
+.capa .local { margin-top: auto; }
+
+/* --------------------------------------------------------------- resumo */
+.folha-rosto-nota {
+  width: 8cm;
+  margin: 2em 0 2em auto;
+  font-size: 10pt;
+  line-height: 1.2;
+  text-align: justify;
+  text-indent: 0;
+  text-transform: none;
+}
+
+.resumo-corpo { text-indent: 0; }
+.palavras-chave { text-indent: 0; margin-top: 1em; }
+
+/* --------------------------------------------------------------- sumário */
+/* O sumário ocupa folha própria, conforme a NBR 14724. */
+.sumario { page-break-before: always; page-break-after: always; }
+.sumario h1 { page-break-before: avoid; text-align: center; }
+.sumario ol { list-style: none; padding: 0; margin: 0; }
+.sumario li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  margin-bottom: 0.55em;
+  text-indent: 0;
+}
+.sumario .num { min-width: 1.6em; }
+.sumario .txt { white-space: nowrap; }
+.sumario .pontos {
+  flex: 1;
+  border-bottom: 1px dotted #000;
+  transform: translateY(-0.25em);
+}
+.sumario .sub { padding-left: 1.6em; }
+.sumario .sub .num { min-width: 2.4em; }
+
+/* ------------------------------------------------------- quadros e figuras */
+figure { margin: 1.4em 0; text-indent: 0; page-break-inside: avoid; }
+
+figcaption {
+  font-size: 10pt;
+  line-height: 1.2;
+  text-align: center;
+  text-indent: 0;
+  margin-bottom: 0.5em;
+}
+figcaption b { font-weight: bold; }
+
+.fonte {
+  font-size: 10pt;
+  line-height: 1.2;
+  text-align: center;
+  text-indent: 0;
+  margin-top: 0.4em;
+}
+
+figure img {
+  display: block;
+  width: 100%;
+  border: 1px solid #999;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+  line-height: 1.25;
+}
+th, td {
+  border: 1px solid #000;
+  padding: 0.4em 0.5em;
+  text-align: left;
+  vertical-align: top;
+}
+th { font-weight: bold; background: #efefef; }
+
+/* Diagramas em SVG. */
+.diagrama { width: 100%; height: auto; }
+
+/* -------------------------------------------------------------- código */
+code {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 10.5pt;
+}
+
+pre {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 9.5pt;
+  line-height: 1.25;
+  border: 1px solid #999;
+  padding: 0.7em 0.9em;
+  text-indent: 0;
+  text-align: left;
+  white-space: pre-wrap;
+  page-break-inside: avoid;
+}
+
+/* --------------------------------------------------------- referências */
+.referencias p {
+  text-indent: 0;
+  margin-bottom: 1em;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.sem-recuo { text-indent: 0; }
+</style>
+</head>
+<body>
+
+<section class="capa">
+  <p class="instituicao">Graduação Tecnológica em Inteligência Artificial e Automação Digital</p>
+  <p class="curso">Integração de APIs</p>
+  <p class="autor">João Henrique Benatti Coimbra</p>
+
+  <div class="titulo">
+    <p>RadarInvest: central inteligente de monitoramento de mercado</p>
+    <p style="font-weight: normal; font-size: 12pt; margin-top: 0.8em;">
+      Análise e discussão da integração entre APIs públicas e privadas
+    </p>
+  </div>
+
+  <p class="local">2026</p>
+</section>
+
+<section>
+  <h1 style="page-break-before: avoid; text-align: center;">Resumo</h1>
+
+  <p class="resumo-corpo">
+    Escritórios de assessoria de investimentos acompanham dezenas de ativos
+    usando ferramentas que não conversam entre si. O assessor consulta cotações
+    em um sistema, indicadores macroeconômicos em outro, registra o que julga
+    relevante em uma planilha e avisa o cliente por mensagem quando lembra. Este
+    trabalho descreve o RadarInvest, uma aplicação que consolida três serviços
+    externos em uma interface única, aplica regras de negócio sobre os dados
+    coletados e dispara alertas automáticos quando um ativo rompe o limite de
+    variação configurado pelo assessor. A solução integra a brapi.dev, que exige
+    credencial, a BrasilAPI, que é aberta, e o Airtable, usado como banco de
+    dados no-code. O documento discute a justificativa de cada escolha, o fluxo
+    de integração, a estratégia de autenticação adotada, a forma de
+    armazenamento e os cuidados com proteção de dados pessoais previstos na Lei
+    Geral de Proteção de Dados. A aplicação está publicada e o código-fonte é
+    aberto.
+  </p>
+
+  <p class="palavras-chave">
+    <b>Palavras-chave:</b> integração de sistemas; API REST; autenticação;
+    proteção de dados pessoais; automação.
+  </p>
+</section>
+
+<section class="sumario">
+  <h1>Sumário</h1>
+  <ol>
+    <li><span class="num">1</span><span class="txt">INTRODUÇÃO</span><span class="pontos"></span><span>4</span></li>
+    <li><span class="num">2</span><span class="txt">DESCRIÇÃO DA SOLUÇÃO PROPOSTA</span><span class="pontos"></span><span>5</span></li>
+    <li class="sub"><span class="num">2.1</span><span class="txt">O que a aplicação entrega</span><span class="pontos"></span><span>5</span></li>
+    <li class="sub"><span class="num">2.2</span><span class="txt">Interface</span><span class="pontos"></span><span>6</span></li>
+    <li><span class="num">3</span><span class="txt">APIS UTILIZADAS E JUSTIFICATIVA DA ESCOLHA</span><span class="pontos"></span><span>8</span></li>
+    <li class="sub"><span class="num">3.1</span><span class="txt">brapi.dev</span><span class="pontos"></span><span>8</span></li>
+    <li class="sub"><span class="num">3.2</span><span class="txt">BrasilAPI</span><span class="pontos"></span><span>9</span></li>
+    <li class="sub"><span class="num">3.3</span><span class="txt">Airtable</span><span class="pontos"></span><span>9</span></li>
+    <li><span class="num">4</span><span class="txt">FLUXO DE INTEGRAÇÃO ENTRE OS SISTEMAS</span><span class="pontos"></span><span>11</span></li>
+    <li class="sub"><span class="num">4.1</span><span class="txt">Etapas do ciclo</span><span class="pontos"></span><span>11</span></li>
+    <li class="sub"><span class="num">4.2</span><span class="txt">Consulta sob demanda e ciclo agendado</span><span class="pontos"></span><span>13</span></li>
+    <li class="sub"><span class="num">4.3</span><span class="txt">Alerta na transição de estado</span><span class="pontos"></span><span>14</span></li>
+    <li><span class="num">5</span><span class="txt">ESTRATÉGIA DE AUTENTICAÇÃO E SEGURANÇA</span><span class="pontos"></span><span>15</span></li>
+    <li class="sub"><span class="num">5.1</span><span class="txt">Par de credenciais assimétrico</span><span class="pontos"></span><span>15</span></li>
+    <li class="sub"><span class="num">5.2</span><span class="txt">Rotação com detecção de reuso</span><span class="pontos"></span><span>16</span></li>
+    <li class="sub"><span class="num">5.3</span><span class="txt">Papéis, escopos e verificação de posse</span><span class="pontos"></span><span>17</span></li>
+    <li class="sub"><span class="num">5.4</span><span class="txt">Armazenamento de senhas</span><span class="pontos"></span><span>18</span></li>
+    <li class="sub"><span class="num">5.5</span><span class="txt">Proteção das credenciais de terceiros</span><span class="pontos"></span><span>19</span></li>
+    <li><span class="num">6</span><span class="txt">ARMAZENAMENTO E MANIPULAÇÃO DOS DADOS</span><span class="pontos"></span><span>20</span></li>
+    <li class="sub"><span class="num">6.1</span><span class="txt">Modelo de dados</span><span class="pontos"></span><span>20</span></li>
+    <li class="sub"><span class="num">6.2</span><span class="txt">Normalização</span><span class="pontos"></span><span>21</span></li>
+    <li class="sub"><span class="num">6.3</span><span class="txt">Consumo consciente das APIs</span><span class="pontos"></span><span>22</span></li>
+    <li><span class="num">7</span><span class="txt">LGPD, ÉTICA E GOVERNANÇA DAS INTEGRAÇÕES</span><span class="pontos"></span><span>24</span></li>
+    <li class="sub"><span class="num">7.1</span><span class="txt">Base legal e consentimento</span><span class="pontos"></span><span>24</span></li>
+    <li class="sub"><span class="num">7.2</span><span class="txt">Minimização</span><span class="pontos"></span><span>24</span></li>
+    <li class="sub"><span class="num">7.3</span><span class="txt">Direitos do titular</span><span class="pontos"></span><span>25</span></li>
+    <li class="sub"><span class="num">7.4</span><span class="txt">Governança das integrações</span><span class="pontos"></span><span>26</span></li>
+    <li><span class="num">8</span><span class="txt">CONSIDERAÇÕES FINAIS</span><span class="pontos"></span><span>28</span></li>
+    <li><span class="num"></span><span class="txt">REFERÊNCIAS</span><span class="pontos"></span><span>30</span></li>
+  </ol>
+</section>
+
+<!-- ==================================================================== 1 -->
+<h1>1 Introdução</h1>
+
+<p>
+  Um escritório de assessoria de investimentos de porte pequeno ou médio
+  acompanha dezenas de ativos distribuídos entre carteiras de clientes
+  diferentes. O trabalho de acompanhamento, na prática, permanece manual. O
+  assessor abre o home broker para verificar cotações, consulta um segundo site
+  para saber a taxa Selic vigente, anota em uma planilha o que considerou
+  relevante e envia uma mensagem ao cliente quando se lembra de fazê-lo.
+</p>
+
+<p>
+  Nenhuma dessas informações é escassa. Cotações da B3 e indicadores
+  macroeconômicos oficiais estão disponíveis publicamente, muitos deles em
+  formato legível por máquina. O que falta não é o dado, e sim a resposta que se
+  extrai dele. A pergunta que o assessor precisa responder várias vezes ao dia é
+  específica: quais dos ativos sob sua responsabilidade exigem atenção neste
+  momento, e por qual motivo.
+</p>
+
+<p>
+  A fragmentação cobra dois preços. O primeiro é o tempo gasto reunindo dados,
+  que deixa de ser gasto no atendimento ao cliente. O segundo é menos visível e
+  mais grave: um alerta que depende da memória de uma pessoa chega tarde ou não
+  chega. Movimentos relevantes de preço acontecem enquanto o assessor está em
+  reunião, almoçando ou atendendo outro cliente.
+</p>
+
+<p>
+  Este trabalho descreve a concepção e a implementação do RadarInvest, uma
+  aplicação que integra três serviços externos para responder àquela pergunta de
+  forma contínua. O documento apresenta a solução proposta, justifica a escolha
+  de cada API consumida, descreve o fluxo de integração, a estratégia de
+  autenticação e segurança, a forma de armazenamento e manipulação dos dados e
+  os cuidados adotados quanto à proteção de dados pessoais, ética e governança.
+</p>
+
+<p>
+  O código-fonte está disponível em repositório público e a aplicação encontra-se
+  publicada em ambiente de produção, com documentação de interface gerada a
+  partir das rotas implementadas.
+</p>
+
+<!-- ==================================================================== 2 -->
+<h1>2 Descrição da solução proposta</h1>
+
+<p>
+  O RadarInvest consolida as fontes dispersas em uma aplicação única. O assessor
+  cadastra os ativos que deseja monitorar e informa, para cada um, a variação
+  percentual que considera relevante. A partir desse cadastro, o sistema coleta
+  cotações e indicadores macroeconômicos em intervalos regulares, cruza as duas
+  informações, calcula quais ativos merecem atenção prioritária, grava o
+  histórico em um banco de dados acessível ao time não técnico e envia um alerta
+  quando algum limite configurado é rompido.
+</p>
+
+<h2>2.1 O que a aplicação entrega</h2>
+
+<p>
+  O ganho da solução não está em exibir dados que já existem em outros lugares.
+  Está em transformá-los em uma ordem de prioridade. A tela principal apresenta
+  os ativos da carteira ordenados por nível de atenção, e não por ordem
+  alfabética ou por data de cadastro.
+</p>
+
+<p>
+  A classificação segue três faixas. Um ativo cuja variação absoluta atingiu ou
+  ultrapassou o limite configurado recebe a classificação crítica. Um ativo cuja
+  variação atingiu sessenta por cento do limite recebe a classificação de
+  observação. Os demais permanecem em situação normal. A faixa intermediária
+  existe porque um painel binário, que informa apenas se o limite foi rompido ou
+  não, avisa tarde: o assessor tem interesse em ver o ativo se aproximando do
+  limite, e não somente o rompimento já consumado.
+</p>
+
+<p>
+  A aplicação também calcula uma métrica derivada que nenhuma das APIs consumidas
+  fornece pronta. A variação de cada ativo é comparada ao Certificado de Depósito
+  Interbancário do período, obtido da BrasilAPI e convertido da taxa anual para a
+  taxa mensal. O resultado informa quanto o ativo rendeu acima ou abaixo do custo
+  de oportunidade de referência do mercado brasileiro. Esse cruzamento entre duas
+  fontes independentes é o que distingue integração de simples consumo.
+</p>
+
+<h2>2.2 Interface</h2>
+
+<p>
+  A interface foi construída para leitura rápida. A Figura 1 apresenta a tela
+  principal com três ativos cadastrados e limites diferentes, o que produz as
+  três faixas de classificação simultaneamente.
+</p>
+
+<figure>
+  <figcaption><b>Figura 1</b> - Painel com a carteira ordenada por nível de atenção</figcaption>
+  <img src="images/04-painel.png" alt="Painel do RadarInvest">
+  <p class="fonte">Fonte: elaborado pelo autor (2026).</p>
+</figure>
+
+<p>
+  A leitura acontece pela borda esquerda de cada linha. A régua vertical codifica
+  o nível de atenção por espessura e cor. A cor do número percentual, por sua
+  vez, codifica a direção do movimento, seguindo a convenção que o assessor já
+  utiliza no home broker, em que a alta aparece em verde e a baixa em vermelho.
+</p>
+
+<p>
+  A separação dos dois eixos foi deliberada. Na Figura 1, o ativo PETR4 subiu
+  3,38 por cento e rompeu um limite configurado em 1 por cento. Ele aparece com
+  régua vermelha, por ser crítico, e com número verde, por ter subido. Se o nível
+  de atenção também determinasse a cor do número, uma alta expressiva apareceria
+  em vermelho e a leitura imediata do sinal se perderia.
+</p>
+
+<p>
+  O rodapé da tela informa quantas chamadas externas foram feitas e quantas foram
+  evitadas pelo cache. Essa informação será retomada na seção 6.3.
+</p>
+
+<p>
+  A Figura 2 apresenta a tela de cadastro de ativos. O formulário separa a
+  identificação do ativo da regra de monitoramento, porque os campos respondem a
+  perguntas distintas: qual é o ativo e a partir de que ponto ele merece atenção.
+</p>
+
+<figure>
+  <figcaption><b>Figura 2</b> - Cadastro de ativo e carteira monitorada</figcaption>
+  <img src="images/05-ativos.png" alt="Tela de cadastro de ativos">
+  <p class="fonte">Fonte: elaborado pelo autor (2026).</p>
+</figure>
+
+<p>
+  Na listagem, o endereço de correio eletrônico do responsável aparece
+  parcialmente mascarado. O motivo é discutido na seção 7.2.
+</p>
+
+<!-- ==================================================================== 3 -->
+<h1>3 APIs utilizadas e justificativa da escolha</h1>
+
+<p>
+  A aplicação consome três serviços externos. A escolha não foi determinada
+  apenas pela disponibilidade dos dados, mas também pela intenção de exercitar
+  naturezas diferentes de integração dentro do mesmo projeto. O Quadro 1 resume
+  as três.
+</p>
+
+<figure>
+  <figcaption><b>Quadro 1</b> - Serviços externos consumidos pela aplicação</figcaption>
+  <table>
+    <thead>
+      <tr><th style="width:22%">Serviço</th><th style="width:16%">Natureza</th><th style="width:26%">Autenticação</th><th>Papel no projeto</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>brapi.dev</td><td>Privada</td><td>Bearer Token</td><td>Cotações de ativos negociados na B3</td></tr>
+      <tr><td>BrasilAPI</td><td>Pública</td><td>Nenhuma</td><td>Selic, CDI e IPCA</td></tr>
+      <tr><td>Airtable</td><td>Privada</td><td>Personal Access Token</td><td>Persistência em banco no-code</td></tr>
+    </tbody>
+  </table>
+  <p class="fonte">Fonte: elaborado pelo autor (2026).</p>
+</figure>
+
+<h2>3.1 brapi.dev</h2>
+
+<p>
+  A brapi.dev fornece cotações de ativos negociados na Bolsa de Valores de São
+  Paulo. O acesso exige credencial enviada no cabeçalho <code>Authorization</code>,
+  no formato Bearer definido pela RFC 6750 (JONES; HARDT, 2012).
+</p>
+
+<p>
+  A exigência de credencial foi um critério de escolha, e não um obstáculo
+  contornado. Ela obriga o projeto a tratar três situações que uma API aberta não
+  apresentaria: a proteção da chave fora do código-fonte, a construção correta do
+  cabeçalho de autorização e o tratamento das respostas de erro do provedor. A
+  aplicação distingue quatro códigos devolvidos pela origem. O código 401 indica
+  credencial inválida ou ausente, o 402 indica que o limite do plano contratado
+  foi excedido, o 404 indica ticker inexistente e o 429 indica excesso de
+  requisições.
+</p>
+
+<p>
+  O tratamento diferenciado do código 402 merece registro. A resposta poderia ser
+  agrupada com as demais falhas de origem, mas a causa e a correção são
+  diferentes. Repetir a requisição não resolve o esgotamento de cota, que exige
+  mudança de plano. Reportar as duas situações com o mesmo código transformaria o
+  fim das quinze mil requisições mensais do plano gratuito em um problema difícil
+  de diagnosticar.
+</p>
+
+<h2>3.2 BrasilAPI</h2>
+
+<p>
+  A BrasilAPI reúne dados públicos brasileiros em interfaces REST padronizadas. O
+  projeto consome o recurso de taxas, que devolve Selic, CDI e IPCA. O serviço não
+  exige autenticação.
+</p>
+
+<p>
+  A escolha funciona como contraponto deliberado à brapi.dev. Ter as duas lado a
+  lado torna a distinção entre API pública e privada visível no próprio código, e
+  não apenas na documentação. O adaptador da BrasilAPI não envia cabeçalho de
+  autorização, e essa ausência está comentada no arquivo correspondente. Enviar
+  credencial para um serviço que não a solicita expõe o segredo sem nenhum ganho.
+</p>
+
+<p>
+  A comparação também evidencia o limite das APIs abertas. Dados públicos são
+  adequados para consulta e enriquecimento, mas não sustentam sozinhos uma
+  aplicação de negócio. Sem as cotações da brapi.dev, o RadarInvest não teria o
+  que monitorar.
+</p>
+
+<h2>3.3 Airtable</h2>
+
+<p>
+  O Airtable foi adotado como banco de dados no-code, atendendo ao requisito de
+  persistência do trabalho. A escolha tem três justificativas.
+</p>
+
+<p>
+  A primeira é a consistência conceitual. O Airtable expõe interface REST com o
+  mesmo padrão Bearer das outras duas integrações, com escopo definido por base e
+  token revogável pelo painel administrativo. Trocar o banco de dados não altera o
+  modelo de autenticação empregado no restante do sistema.
+</p>
+
+<p>
+  A segunda é operacional. Os registros ficam visíveis em uma interface de
+  planilha, o que permite que membros não técnicos do escritório consultem o
+  histórico sem intermediação e sem conhecimento de SQL.
+</p>
+
+<p>
+  A terceira é pedagógica. As restrições da plataforma são rígidas e conhecidas,
+  o que obriga o projeto a desenhar o acesso ao redor delas em vez de tratá-las
+  como detalhe. A seção 6.3 detalha essas restrições e suas consequências no
+  código.
+</p>
+
+<!-- ==================================================================== 4 -->
+<h1>4 Fluxo de integração entre os sistemas</h1>
+
+<p>
+  A Figura 3 apresenta o fluxo entre os componentes internos da aplicação e os
+  serviços externos consumidos.
+</p>
+
+<figure>
+  <figcaption><b>Figura 3</b> - Fluxo de integração entre os sistemas</figcaption>
+  <svg class="diagrama" viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+    <defs>
+      <marker id="seta" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#000"/>
+      </marker>
+      <marker id="seta-inicio" markerWidth="9" markerHeight="9" refX="1" refY="3" orient="auto">
+        <path d="M9,0 L9,6 L1,3 z" fill="#000"/>
+      </marker>
+    </defs>
+
+    <!-- consumidores -->
+    <rect x="20" y="14" width="155" height="46" fill="none" stroke="#000"/>
+    <text x="97" y="35" font-size="11" text-anchor="middle">Navegador</text>
+    <text x="97" y="50" font-size="9" text-anchor="middle">interface do assessor</text>
+
+    <rect x="545" y="14" width="155" height="46" fill="none" stroke="#000"/>
+    <text x="622" y="35" font-size="11" text-anchor="middle">Agendador</text>
+    <text x="622" y="50" font-size="9" text-anchor="middle">GitHub Actions</text>
+
+    <!-- fronteira da aplicacao -->
+    <rect x="14" y="100" width="692" height="160" fill="none" stroke="#000" stroke-dasharray="4 3"/>
+    <text x="26" y="116" font-size="9" fill="#444">Aplicação</text>
+
+    <rect x="30" y="140" width="150" height="46" fill="none" stroke="#000"/>
+    <text x="105" y="161" font-size="10" text-anchor="middle">Interface no servidor</text>
+    <text x="105" y="175" font-size="9" text-anchor="middle">renderização</text>
+
+    <rect x="270" y="140" width="180" height="46" fill="none" stroke="#000"/>
+    <text x="360" y="161" font-size="10" text-anchor="middle">Camada de serviço</text>
+    <text x="360" y="175" font-size="9" text-anchor="middle">normalização e regras</text>
+
+    <rect x="520" y="140" width="160" height="46" fill="none" stroke="#000"/>
+    <text x="600" y="161" font-size="10" text-anchor="middle">API REST</text>
+    <text x="600" y="175" font-size="9" text-anchor="middle">rotas versionadas</text>
+
+    <rect x="520" y="205" width="160" height="42" fill="none" stroke="#000"/>
+    <text x="600" y="224" font-size="10" text-anchor="middle">Cache em memória</text>
+    <text x="600" y="238" font-size="9" text-anchor="middle">TTL e contadores</text>
+
+    <!-- servicos externos -->
+    <rect x="20" y="296" width="155" height="42" fill="none" stroke="#000"/>
+    <text x="97" y="314" font-size="10" text-anchor="middle">brapi.dev</text>
+    <text x="97" y="328" font-size="9" text-anchor="middle">Bearer Token</text>
+
+    <rect x="195" y="296" width="155" height="42" fill="none" stroke="#000"/>
+    <text x="272" y="314" font-size="10" text-anchor="middle">BrasilAPI</text>
+    <text x="272" y="328" font-size="9" text-anchor="middle">sem credencial</text>
+
+    <rect x="370" y="296" width="155" height="42" fill="none" stroke="#000"/>
+    <text x="447" y="314" font-size="10" text-anchor="middle">Airtable</text>
+    <text x="447" y="328" font-size="9" text-anchor="middle">Personal Access Token</text>
+
+    <rect x="545" y="296" width="155" height="42" fill="none" stroke="#000"/>
+    <text x="622" y="314" font-size="10" text-anchor="middle">Canal do titular</text>
+    <text x="622" y="328" font-size="9" text-anchor="middle">webhook</text>
+
+    <!-- entradas -->
+    <line x1="97" y1="60" x2="97" y2="138" stroke="#000" marker-end="url(#seta)"/>
+    <line x1="622" y1="60" x2="622" y2="138" stroke="#000" marker-end="url(#seta)"/>
+    <text x="612" y="88" font-size="8.5" text-anchor="end">POST /sync-runs com segredo compartilhado</text>
+
+    <!-- interface chama o servico em funcao, sem passar pela rede -->
+    <line x1="180" y1="163" x2="268" y2="163" stroke="#000" marker-end="url(#seta)"/>
+    <text x="224" y="131" font-size="8.5" text-anchor="middle">chamada em função</text>
+
+    <!-- a API tambem usa a mesma camada -->
+    <line x1="518" y1="163" x2="452" y2="163" stroke="#000" marker-end="url(#seta)"/>
+
+    <!-- cache consultado e alimentado pela camada de servico -->
+    <line x1="452" y1="178" x2="518" y2="212" stroke="#000" marker-end="url(#seta)" marker-start="url(#seta-inicio)"/>
+
+    <!-- barramento unico para os servicos externos -->
+    <line x1="340" y1="186" x2="340" y2="276" stroke="#000"/>
+    <line x1="97" y1="276" x2="622" y2="276" stroke="#000"/>
+    <line x1="97" y1="276" x2="97" y2="294" stroke="#000" marker-end="url(#seta)"/>
+    <line x1="272" y1="276" x2="272" y2="294" stroke="#000" marker-end="url(#seta)"/>
+    <line x1="447" y1="276" x2="447" y2="294" stroke="#000" marker-end="url(#seta)"/>
+    <line x1="622" y1="276" x2="622" y2="294" stroke="#000" marker-end="url(#seta)"/>
+    <text x="480" y="269" font-size="8.5" text-anchor="middle">coleta, persistência e notificação</text>
+  </svg>
+  <p class="fonte">Fonte: elaborado pelo autor (2026).</p>
+</figure>
+
+<p>
+  Uma decisão de arquitetura merece destaque no diagrama. A interface renderizada
+  no servidor não consome a própria API REST pela rede. Ela invoca a camada de
+  serviço diretamente, por chamada de função. Uma página do servidor que se
+  comunica com a própria API paga uma volta completa de serialização,
+  transporte e desserialização para conversar consigo mesma. A API REST continua
+  existindo, com finalidade definida: atender o código executado no navegador, o
+  agendador e eventuais consumidores externos.
+</p>
+
+<h2>4.1 Etapas do ciclo</h2>
+
+<p>
+  O ciclo completo percorre cinco etapas.
+</p>
+
+<p class="sem-recuo">
+  <b>Coleta.</b> A aplicação consulta os dois serviços de dados, servindo do
+  cache o que ainda estiver dentro do tempo de vida configurado.
+</p>
+
+<p class="sem-recuo">
+  <b>Normalização.</b> Os dois documentos JSON chegam com estruturas distintas e
+  são convertidos para um modelo interno único. Este ponto é detalhado na seção
+  6.2.
+</p>
+
+<p class="sem-recuo">
+  <b>Aplicação das regras.</b> A variação de cada ativo é comparada ao limite
+  cadastrado e ao CDI do período, produzindo o nível de atenção e a métrica
+  comparativa.
+</p>
+
+<p class="sem-recuo">
+  <b>Persistência.</b> Os resultados são gravados no Airtable em lote, e somente
+  aqueles que sofreram alteração relevante.
+</p>
+
+<p class="sem-recuo">
+  <b>Notificação.</b> Os ativos que passaram a romper o limite geram alerta, que
+  é enviado ao canal configurado pelo titular da carteira.
+</p>
+
+<h2>4.2 Consulta sob demanda e ciclo agendado</h2>
+
+<p>
+  A aplicação possui dois caminhos que buscam cotações, e a distinção entre eles
+  costuma gerar confusão. O Quadro 2 os compara.
+</p>
+
+<figure>
+  <figcaption><b>Quadro 2</b> - Comparação entre a consulta sob demanda e o ciclo agendado</figcaption>
+  <table>
+    <thead>
+      <tr><th style="width:34%">Característica</th><th style="width:33%">Consulta do painel</th><th style="width:33%">Ciclo agendado</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Momento de execução</td><td>Ao abrir a página</td><td>A cada quinze minutos durante o pregão</td></tr>
+      <tr><td>Busca cotações</td><td>Sim</td><td>Sim</td></tr>
+      <tr><td>Grava histórico</td><td>Não</td><td>Sim</td></tr>
+      <tr><td>Gera alerta</td><td>Não</td><td>Sim</td></tr>
+      <tr><td>Finalidade</td><td>Mostrar a situação atual</td><td>Vigiar na ausência do assessor</td></tr>
+    </tbody>
+  </table>
+  <p class="fonte">Fonte: elaborado pelo autor (2026).</p>
+</figure>
+
+<p>
+  Os dois caminhos são necessários. Sem a consulta sob demanda, o painel exibiria
+  dados com até quinze minutos de defasagem. Sem o ciclo agendado, o assessor só
+  tomaria conhecimento de um rompimento quando decidisse abrir a aplicação, o que
+  anula a finalidade do sistema.
+</p>
+
+<p>
+  A automação é acionada por um fluxo de trabalho hospedado no GitHub Actions,
+  agendado para dias úteis entre as treze e as vinte e uma horas em tempo
+  universal coordenado, faixa que corresponde ao pregão da B3 no horário de
+  Brasília. O agendador não executa regra de negócio alguma: ele realiza uma
+  requisição HTTP autenticada e encerra. Toda a lógica permanece na aplicação.
+</p>
+
+<p>
+  A escolha do GitHub Actions em lugar do agendador da plataforma de hospedagem
+  teve motivo prático. O plano gratuito da plataforma executa tarefas agendadas
+  uma vez por dia, frequência incompatível com monitoramento de mercado. Um
+  benefício adicional é que o arquivo de configuração do fluxo fica versionado no
+  repositório, o que torna a automação um artefato revisável em vez de uma
+  configuração invisível em painel administrativo.
+</p>
+
+<h2>4.3 Alerta na transição de estado</h2>
+
+<p>
+  Uma regra de negócio do ciclo merece detalhamento por ser contraintuitiva. O
+  alerta é disparado na transição de estado, e não com base no estado corrente.
+</p>
+
+<p>
+  Cada ativo armazena um campo que registra se ele estava ou não em situação de
+  rompimento no ciclo anterior. O alerta só é gerado quando esse campo muda de
+  normal para rompido. Enquanto o ativo permanece rompido, o sistema atualiza o
+  registro sem gerar novo alerta.
+</p>
+
+<p>
+  Sem essa regra, um ativo que rompesse o limite pela manhã geraria um alerta a
+  cada quinze minutos até o fechamento do pregão. O assessor silenciaria o canal
+  de notificação em poucas horas e, com ele, perderia também os alertas
+  relevantes. A qualidade de um sistema de alerta depende menos da velocidade de
+  entrega e mais da confiança de que cada notificação recebida significa algo
+  novo.
+</p>
+
+<!-- ==================================================================== 5 -->
+<h1>5 Estratégia de autenticação e segurança</h1>
+
+<p>
+  A autenticação do RadarInvest foi implementada sem bibliotecas prontas de
+  gerenciamento de sessão. A decisão foi pedagógica: o mecanismo precisa ser
+  explicável linha a linha, o que não seria possível delegando o assunto a uma
+  dependência.
+</p>
+
+<h2>5.1 Par de credenciais assimétrico</h2>
+
+<p>
+  O sistema emite duas credenciais com características opostas, resumidas no
+  Quadro 3.
+</p>
+
+<figure>
+  <figcaption><b>Quadro 3</b> - Características das credenciais emitidas</figcaption>
+  <table>
+    <thead>
+      <tr><th style="width:28%">Característica</th><th style="width:36%">Token de acesso</th><th style="width:36%">Token de renovação</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Formato</td><td>JWT assinado com HS256</td><td>32 bytes aleatórios, opaco</td></tr>
+      <tr><td>Validade</td><td>15 minutos</td><td>7 dias</td></tr>
+      <tr><td>Onde é mantido</td><td>Memória do cliente</td><td>Cookie inacessível a scripts</td></tr>
+      <tr><td>Armazenamento no servidor</td><td>Não é armazenado</td><td>Resumo SHA-256</td></tr>
+      <tr><td>Pode ser revogado</td><td>Não</td><td>Sim</td></tr>
+    </tbody>
+  </table>
+  <p class="fonte">Fonte: elaborado pelo autor (2026).</p>
+</figure>
+
+<p>
+  O token de acesso não é revogável. Depois de emitido, permanece válido até
+  expirar, porque a validação consulta apenas a assinatura e a data de expiração,
+  sem consultar o banco de dados. A janela curta de quinze minutos é o que limita
+  o dano em caso de vazamento.
+</p>
+
+<p>
+  O token de renovação existe justamente para ser revogável, e por isso é
+  registrado no banco. Ele não é um JWT. Um JWT carrega estado assinado e vale
+  enquanto não expirar, o oposto do que se espera de uma credencial que precisa
+  poder ser invalidada no instante em que se descobre um comprometimento. O valor
+  opaco não significa nada isoladamente: só tem utilidade quando confrontado com
+  o registro correspondente.
+</p>
+
+<p>
+  O armazenamento usa SHA-256, e não uma função de derivação lenta como bcrypt ou
+  Argon2. Funções lentas existem para compensar a baixa entropia de senhas
+  escolhidas por pessoas. Um valor de 256 bits gerado por fonte criptográfica não
+  é suscetível a força bruta, e uma derivação custosa acrescentaria latência a
+  cada renovação sem ganho correspondente. O resumo cumpre a função pretendida:
+  o vazamento da tabela não entrega credenciais utilizáveis.
+</p>
+
+<h2>5.2 Rotação com detecção de reuso</h2>
+
+<p>
+  Cada autenticação bem-sucedida abre uma família de tokens identificada por um
+  valor único. Cada renovação emite um token novo dentro da mesma família e marca
+  o anterior como consumido.
+</p>
+
+<p>
+  Se um token já consumido for apresentado novamente, existem apenas duas
+  explicações possíveis. Ou ele vazou e está sendo usado por terceiro, ou vazou,
+  foi usado por terceiro e agora o titular legítimo o apresenta. Nos dois casos a
+  cadeia está comprometida. A resposta implementada é revogar a família inteira e
+  recusar a requisição. Revogar apenas o token apresentado deixaria viva a outra
+  extremidade da cadeia, que é justamente a do atacante.
+</p>
+
+<p>
+  A família expira sete dias após a autenticação, e a rotação não estende esse
+  prazo. Cada token novo herda a data de expiração original. Sem essa restrição,
+  uma sessão renovada a cada quinze minutos permaneceria válida indefinidamente.
+</p>
+
+<p>
+  A técnica segue a recomendação de rotação de tokens de renovação descrita nas
+  boas práticas de segurança para OAuth 2.0 (LODDERSTEDT et al., 2020).
+</p>
+
+<h2>5.3 Papéis, escopos e verificação de posse</h2>
+
+<p>
+  O sistema distingue papel de escopo. O papel indica a função geral do usuário.
+  O escopo delimita o acesso concreto a uma operação. A conversão de papel em
+  escopos ocorre uma única vez, no momento da autenticação, e o resultado é
+  gravado no token. Isso implica que a promoção de um usuário só produz efeito a
+  partir da autenticação seguinte, comportamento intencional e documentado.
+</p>
+
+<p>
+  Toda rota protegida executa a mesma sequência de verificação, nesta ordem:
+</p>
+
+<pre>validar o token          falha resulta em 401
+extrair a identidade
+verificar o escopo       falha resulta em 403
+verificar a posse        falha resulta em 403 ou 404
+consultar os dados
+filtrar a resposta</pre>
+
+<p>
+  A verificação de posse é o passo que não pode ser omitido. Sem ela, a interface
+  fica exposta à falha catalogada pela OWASP como Broken Object Level
+  Authorization, em que um usuário devidamente autenticado acessa recurso
+  pertencente a outro (OWASP, 2023). Um token válido comprova identidade e nunca
+  comprova propriedade.
+</p>
+
+<p>
+  Na implementação, o identificador do proprietário extraído do token é
+  incorporado à consulta enviada ao banco de dados, e não aplicado como filtro em
+  memória posteriormente. Trazer a carteira inteira do escritório para descartar
+  o que não pertence ao solicitante consumiria cota do serviço e faria dados de
+  terceiros transitarem pela aplicação sem necessidade.
+</p>
+
+<p>
+  A consulta de um ativo pertencente a outro usuário devolve o código 404, e não
+  403. Devolver 403 confirmaria que aquele código de negociação existe na
+  carteira de alguém, informação que o solicitante não deveria conseguir extrair.
+</p>
+
+<h2>5.4 Armazenamento de senhas</h2>
+
+<p>
+  As senhas são armazenadas com scrypt, função de derivação de chave definida na
+  RFC 7914 (PERCIVAL; JOSEFSSON, 2016) e recomendada para armazenamento de
+  senhas quando Argon2 não está disponível (NIST, 2017). Os parâmetros utilizados
+  são custo de CPU e memória igual a 2 elevado a 14, fator de blocos igual a 8 e
+  paralelismo igual a 1, o que resulta em aproximadamente 16 megabytes de memória
+  por verificação e algumas dezenas de milissegundos de processamento.
+</p>
+
+<p>
+  O custo é irrelevante para o usuário legítimo, que se autentica poucas vezes ao
+  dia, e proibitivo para tentativas de força bruta em escala, que é exatamente a
+  assimetria pretendida.
+</p>
+
+<p>
+  O resumo armazenado inclui os parâmetros utilizados na sua geração. Sem esse
+  registro, aumentar o custo no futuro invalidaria todas as senhas já cadastradas.
+  A comparação é feita em tempo constante, porque a comparação convencional
+  encerra no primeiro byte divergente e a diferença de tempo, mensurável ao longo
+  de muitas tentativas, revelaria o prefixo correto.
+</p>
+
+<h2>5.5 Proteção das credenciais de terceiros</h2>
+
+<p>
+  Nenhuma variável de ambiente do projeto utiliza o prefixo que a plataforma de
+  desenvolvimento emprega para expor valores ao navegador. Esse prefixo embute o
+  conteúdo no pacote entregue ao cliente, o que exporia todas as credenciais do
+  arquivo. As chaves são lidas exclusivamente por código executado no servidor.
+</p>
+
+<p>
+  A validação das variáveis ocorre na inicialização do processo, antes que a
+  primeira requisição seja atendida. Se alguma chave obrigatória estiver ausente
+  ou inválida, o servidor não sobe e a mensagem de erro nomeia a chave. A
+  alternativa seria descobrir a ausência dentro de um manipulador de requisição,
+  em produção, com o usuário aguardando.
+</p>
+
+<p>
+  As mensagens de erro devolvidas ao consumidor seguem um envelope único composto
+  por indicador de sucesso, código estável legível por máquina e mensagem
+  destinada a pessoas. Erros não previstos são convertidos em um código genérico
+  de erro interno, e o erro original é registrado apenas no servidor. Um rastro
+  de pilha devolvido ao cliente equivale a entregar um mapa da aplicação a quem
+  estiver sondando.
+</p>
+
+<!-- ==================================================================== 6 -->
+<h1>6 Armazenamento e manipulação dos dados</h1>
+
+<h2>6.1 Modelo de dados</h2>
+
+<p>
+  A base no Airtable é composta por cinco tabelas, descritas no Quadro 4.
+</p>
+
+<figure>
+  <figcaption><b>Quadro 4</b> - Tabelas da base de dados</figcaption>
+  <table>
+    <thead>
+      <tr><th style="width:18%">Tabela</th><th>Conteúdo</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Users</td><td>Contas de acesso, papel, registro de consentimento e canal pessoal de alertas</td></tr>
+      <tr><td>Sessions</td><td>Famílias de tokens de renovação, com resumo, marcação de uso, revogação e expiração</td></tr>
+      <tr><td>Assets</td><td>Ativos monitorados, limite de variação, proprietário e estado de alerta</td></tr>
+      <tr><td>Quotes</td><td>Histórico de cotações coletadas, com origem e instante da coleta</td></tr>
+      <tr><td>Alerts</td><td>Alertas gerados, com direção, variação, limite rompido e situação de notificação</td></tr>
+    </tbody>
+  </table>
+  <p class="fonte">Fonte: elaborado pelo autor (2026).</p>
+</figure>
+
+<p>
+  O Airtable não oferece chave estrangeira nem integridade referencial. As
+  relações entre tabelas são mantidas por identificadores gravados como texto, e
+  a consistência é responsabilidade da camada de serviço. A eliminação de uma
+  conta, por exemplo, executa remoções em ordem definida: primeiro as sessões,
+  para que nenhuma credencial sobreviva ao registro que ela autenticava, e por
+  último a conta, para que uma falha intermediária não deixe ativos órfãos
+  apontando para um identificador inexistente.
+</p>
+
+<h2>6.2 Normalização</h2>
+
+<p>
+  Cada serviço externo possui um adaptador dedicado, e todos devolvem o modelo
+  interno da aplicação, nunca o documento original da origem. Se a brapi.dev
+  renomear um campo, apenas o adaptador correspondente precisa ser alterado.
+</p>
+
+<p>
+  A necessidade fica evidente na estrutura devolvida pela brapi.dev, que aninha
+  os dados relevantes dois níveis abaixo da raiz, dentro de um arranjo de
+  resultados. O adaptador achata essa estrutura para os campos que o restante da
+  aplicação utiliza.
+</p>
+
+<p>
+  Um detalhe do tratamento merece registro. A resposta da brapi.dev inclui tanto
+  o código solicitado quanto o código atual do ativo, que podem divergir quando
+  houve renomeação na bolsa. O adaptador utiliza o código solicitado como chave,
+  porque é ele que corresponde ao cadastro feito pelo assessor. Ativos que
+  retornam sem preço válido são descartados em vez de propagarem valores
+  inválidos para o cálculo do ranqueamento.
+</p>
+
+<h2>6.3 Consumo consciente das APIs</h2>
+
+<p>
+  As restrições dos serviços consumidos determinaram o desenho do acesso a dados.
+  O Quadro 5 relaciona cada restrição à decisão correspondente.
+</p>
+
+<figure>
+  <figcaption><b>Quadro 5</b> - Restrições das plataformas e decisões de implementação</figcaption>
+  <table>
+    <thead>
+      <tr><th style="width:46%">Restrição</th><th>Decisão adotada</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Airtable: cinco requisições por segundo por base</td><td>Fila de execução serial com intervalo mínimo de 210 milissegundos</td></tr>
+      <tr><td>Airtable: excesso bloqueia a base por trinta segundos</td><td>Espera fixa de trinta segundos, e não recuo exponencial curto</td></tr>
+      <tr><td>Airtable: dez registros por requisição de escrita</td><td>Escritas fatiadas em lotes de dez</td></tr>
+      <tr><td>Airtable: cem registros por página de leitura</td><td>Leitura paginada até o fim do conjunto</td></tr>
+      <tr><td>brapi.dev: quinze mil requisições mensais no plano gratuito</td><td>Todos os códigos agrupados em uma única requisição por ciclo</td></tr>
+    </tbody>
+  </table>
+  <p class="fonte">Fonte: elaborado pelo autor (2026).</p>
+</figure>
+
+<p>
+  O agrupamento de códigos é a decisão de maior impacto. Uma carteira com doze
+  ativos consome uma requisição por ciclo, e não doze. Com quatro execuções por
+  hora durante oito horas de pregão em vinte e dois dias úteis, o consumo mensal
+  fica em torno de setecentas requisições, folgadamente dentro do limite do plano
+  gratuito.
+</p>
+
+<p>
+  Três mecanismos adicionais reduzem o consumo. O primeiro é um cache em memória
+  com tempo de vida configurável, indexado por código de negociação e não pelo
+  conjunto consultado, de modo que a inclusão de um ativo novo na carteira não
+  invalide os demais. O segundo é a persistência seletiva: uma cotação cujo preço
+  não se moveu além de um centésimo de ponto percentual não gera nova linha no
+  histórico. O terceiro é a verificação de horário, que encerra o ciclo sem
+  qualquer chamada externa fora do pregão.
+</p>
+
+<p>
+  Os contadores de chamadas realizadas e evitadas são expostos na resposta da
+  interface e exibidos no rodapé do painel. A escolha é deliberada. Redução de
+  consumo que não é medida não pode ser verificada, e afirmações sobre
+  sustentabilidade digital sem número associado permanecem retóricas.
+</p>
+
+<!-- ==================================================================== 7 -->
+<h1>7 LGPD, ética e governança das integrações</h1>
+
+<h2>7.1 Base legal e consentimento</h2>
+
+<p>
+  O tratamento de dados pessoais realizado pela aplicação tem como base legal o
+  consentimento do titular, previsto no artigo 7º, inciso I, da Lei nº 13.709 de
+  2018 (BRASIL, 2018).
+</p>
+
+<p>
+  O consentimento é registrado no ato do cadastro, com três informações: o
+  aceite, a versão do termo vigente e a data em que foi manifestado. O registro
+  da versão importa porque o consentimento se refere a um texto específico, e um
+  aceite sem indicação do que foi aceito não comprova nada. A ausência de aceite
+  impede a criação da conta, o que faz do consentimento uma condição e não um
+  campo opcional de formulário.
+</p>
+
+<h2>7.2 Minimização</h2>
+
+<p>
+  O princípio da necessidade, previsto no artigo 6º, inciso III, da mesma lei,
+  foi aplicado como decisão de modelagem, e não apenas como filtro de
+  apresentação.
+</p>
+
+<p>
+  A tabela de sessões não armazena endereço IP nem identificação do navegador.
+  Esses dados seriam úteis para um painel de dispositivos conectados que a
+  aplicação não possui. Sem finalidade definida, o dado não é coletado. Registrar
+  primeiro e decidir depois inverte o princípio.
+</p>
+
+<p>
+  Na leitura, o endereço de correio eletrônico do responsável por um ativo é
+  parcialmente mascarado. O assessor precisa identificar de quem é o ativo, e
+  para isso a primeira letra e o domínio são suficientes. O endereço completo
+  seria dado além da finalidade da tela.
+</p>
+
+<h2>7.3 Direitos do titular</h2>
+
+<p>
+  Dois direitos previstos no artigo 18 foram implementados como funcionalidade, e
+  não apenas mencionados em política de privacidade. Um direito que não
+  corresponde a uma operação disponível permanece como texto.
+</p>
+
+<p>
+  A portabilidade, prevista no inciso V, é atendida por uma operação que devolve
+  em formato JSON tudo o que a aplicação armazena sobre o titular: cadastro,
+  registro de consentimento com data e versão, ativos monitorados e alertas
+  gerados. Nessa operação específica o endereço de correio eletrônico não é
+  mascarado, porque o destinatário é o próprio titular. O resumo da senha é
+  excluído da exportação: ele não representa informação útil ao titular, e
+  colocar uma cópia em circulação apenas cria risco adicional.
+</p>
+
+<p>
+  A eliminação, prevista no inciso VI, remove a conta, os ativos monitorados, os
+  alertas gerados e as sessões abertas. A operação exige confirmação por digitação
+  na interface, porque é irreversível e não há cópia de segurança dos dados
+  removidos.
+</p>
+
+<h2>7.4 Governança das integrações</h2>
+
+<p>
+  Três decisões de governança merecem registro.
+</p>
+
+<h3>Escopo mínimo nas credenciais de terceiros</h3>
+
+<p>
+  O token de acesso ao Airtable foi emitido com permissão restrita a uma única
+  base, e não ao espaço de trabalho inteiro. Os escopos concedidos são os
+  estritamente necessários para leitura e escrita de registros e leitura de
+  esquema. Um token que alcança apenas o recurso que precisa alcançar limita o
+  dano de um eventual vazamento.
+</p>
+
+<h3>Separação entre credencial de pessoa e credencial de máquina</h3>
+
+<p>
+  A operação que dispara o ciclo de sincronização aceita duas formas de
+  autenticação, porque os dois chamadores têm naturezas distintas. Um
+  administrador é uma pessoa com sessão ativa e se autentica por token JWT com o
+  escopo apropriado. O agendador é um processo automatizado sem sessão, incapaz
+  de realizar autenticação interativa ou de renovar credenciais, e utiliza um
+  segredo compartilhado enviado em cabeçalho próprio.
+</p>
+
+<p>
+  A alternativa seria criar uma conta de administrador para o agendador. Isso
+  significaria armazenar, no ambiente de integração contínua, uma credencial
+  capaz de consultar carteiras e exportar dados pessoais. O segredo dedicado
+  autoriza uma única operação e nada além dela.
+</p>
+
+<h3>Isolamento no canal de saída</h3>
+
+<p>
+  A primeira versão da funcionalidade de alertas utilizava uma única URL de
+  webhook configurada por variável de ambiente. Durante a revisão constatou-se
+  que essa configuração entregaria os alertas de todos os usuários no mesmo
+  destino, permitindo que um assessor tomasse conhecimento de quais ativos outro
+  assessor acompanha e com que limite.
+</p>
+
+<p>
+  O problema é relevante porque anularia, na última etapa do fluxo, o mesmo
+  isolamento de carteira que a interface protege em todas as suas rotas. Um
+  vazamento no canal de saída tem o mesmo efeito de um vazamento na consulta.
+</p>
+
+<p>
+  A implementação foi corrigida. Cada titular configura o próprio canal, e o ciclo
+  agrupa os alertas por proprietário antes de enviar. A variável global foi
+  mantida com finalidade diferente: um canal de operação que recebe apenas
+  contagens agregadas, sem código de negociação, sem identificação de titular e
+  sem valores de limite. Esse canal atende a quem opera o sistema e precisa saber
+  que o ciclo foi executado, sem expor a carteira de ninguém.
+</p>
+
+<!-- ==================================================================== 8 -->
+<h1>8 Considerações finais</h1>
+
+<p>
+  O RadarInvest integra três serviços externos de naturezas diferentes e
+  transforma os dados coletados em uma resposta ordenada por prioridade. A
+  aplicação está publicada, o ciclo de sincronização executa automaticamente
+  durante o pregão e os direitos de portabilidade e eliminação previstos na LGPD
+  estão disponíveis na interface.
+</p>
+
+<p>
+  O desenvolvimento evidenciou que as restrições das plataformas consumidas não
+  são detalhes de implementação a serem contornados no final. O limite de cinco
+  requisições por segundo do Airtable determinou a existência de uma fila serial.
+  O teto de dez registros por escrita determinou o agrupamento em lotes. A cota
+  mensal da brapi.dev determinou que todos os códigos de negociação fossem
+  agrupados em uma requisição única. Nos três casos, a restrição precedeu e
+  moldou a solução.
+</p>
+
+<p>
+  Duas correções realizadas durante o desenvolvimento ilustram a diferença entre
+  código que funciona em ambiente de desenvolvimento e código que funciona em
+  produção. A primeira foi a validação de variáveis de ambiente, que impedia a
+  compilação do projeto na plataforma de hospedagem quando as variáveis eram
+  marcadas como sensíveis, condição em que só existem em tempo de execução. A
+  segunda foi uma falha na extração do cabeçalho de autorização que se
+  manifestava apenas no modo compilado, fazendo com que seis das oito rotas
+  protegidas respondessem com erro interno em lugar de erro de autenticação. A
+  falha foi identificada no primeiro acionamento real do agendador, e não durante
+  os testes locais.
+</p>
+
+<p>
+  Essa segunda ocorrência motivou a criação de uma rotina de verificação que
+  percorre todas as rotas protegidas sem credencial e com credencial inválida,
+  confirmando o código de resposta esperado em cada uma. A verificação anterior
+  havia examinado duas rotas, uma delas com cabeçalho válido, o que tomava um
+  caminho de execução distinto e ocultava o problema. A amplitude da verificação
+  precisa corresponder à amplitude da mudança realizada.
+</p>
+
+<p>
+  Como evolução, a aplicação comporta a inclusão de novas fontes de dados sem
+  alteração estrutural, uma vez que cada integração é isolada em seu adaptador e
+  devolve o modelo interno já normalizado. O ranqueamento por nível de atenção
+  também admite critérios adicionais, como volume negociado ou correlação entre
+  ativos da mesma carteira.
+</p>
+
+<!-- =============================================================== refs -->
+<h1>Referências</h1>
+
+<div class="referencias">
+
+<p>
+  AIRTABLE. <b>Airtable Web API</b>: rate limits. San Francisco, 2026.
+  Disponível em: https://airtable.com/developers/web/api/rate-limits. Acesso em:
+  31 ago. 2026.
+</p>
+
+<p>
+  BRAPI. <b>brapi</b>: documentação da API de cotações. 2026. Disponível em:
+  https://brapi.dev/docs. Acesso em: 31 ago. 2026.
+</p>
+
+<p>
+  BRASIL. <b>Lei nº 13.709, de 14 de agosto de 2018</b>. Lei Geral de Proteção de
+  Dados Pessoais (LGPD). Brasília, DF: Presidência da República, 2018. Disponível
+  em: https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm.
+  Acesso em: 31 ago. 2026.
+</p>
+
+<p>
+  BRASILAPI. <b>BrasilAPI</b>: documentação. 2026. Disponível em:
+  https://brasilapi.com.br/docs. Acesso em: 31 ago. 2026.
+</p>
+
+<p>
+  JONES, M.; BRADLEY, J.; SAKIMURA, N. <b>RFC 7519</b>: JSON Web Token (JWT).
+  Fremont: Internet Engineering Task Force, 2015. Disponível em:
+  https://www.rfc-editor.org/rfc/rfc7519. Acesso em: 31 ago. 2026.
+</p>
+
+<p>
+  JONES, M.; HARDT, D. <b>RFC 6750</b>: The OAuth 2.0 Authorization Framework:
+  Bearer Token Usage. Fremont: Internet Engineering Task Force, 2012. Disponível
+  em: https://www.rfc-editor.org/rfc/rfc6750. Acesso em: 31 ago. 2026.
+</p>
+
+<p>
+  LODDERSTEDT, T.; BRADLEY, J.; LABUNETS, A.; FETT, D. <b>OAuth 2.0 Security
+  Best Current Practice</b>. Fremont: Internet Engineering Task Force, 2020.
+  Disponível em: https://datatracker.ietf.org/doc/draft-ietf-oauth-security-topics.
+  Acesso em: 31 ago. 2026.
+</p>
+
+<p>
+  NATIONAL INSTITUTE OF STANDARDS AND TECHNOLOGY. <b>NIST Special Publication
+  800-63B</b>: Digital Identity Guidelines: Authentication and Lifecycle
+  Management. Gaithersburg, 2017. Disponível em:
+  https://pages.nist.gov/800-63-3/sp800-63b.html. Acesso em: 31 ago. 2026.
+</p>
+
+<p>
+  OPEN WORLDWIDE APPLICATION SECURITY PROJECT. <b>OWASP API Security Top 10</b>:
+  2023. 2023. Disponível em: https://owasp.org/API-Security/editions/2023/en/0x11-t10.
+  Acesso em: 31 ago. 2026.
+</p>
+
+<p>
+  PERCIVAL, C.; JOSEFSSON, S. <b>RFC 7914</b>: The scrypt Password-Based Key
+  Derivation Function. Fremont: Internet Engineering Task Force, 2016. Disponível
+  em: https://www.rfc-editor.org/rfc/rfc7914. Acesso em: 31 ago. 2026.
+</p>
+
+</div>
+
+</body>
+</html>

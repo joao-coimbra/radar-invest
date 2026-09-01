@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "build:pdf": "node scripts/build-pdf.mjs",
     "smoke:api": "bun --env-file=.env.local scripts/smoke-api.ts",
     "check:airtable": "bun --env-file=.env.local scripts/check-airtable.ts",
     "setup:airtable": "bun --env-file=.env.local scripts/setup-airtable.ts"
@@ -35,6 +36,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "pdf-lib": "^1.17.1",
     "playwright": "^1.62.1",
     "tailwindcss": "^4",
     "typescript": "^5",

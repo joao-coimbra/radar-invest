@@ -46,3 +46,8 @@ next-env.d.ts
 # `!.env.example` lá em cima — que precisa continuar versionado, porque é o
 # arquivo que documenta todas as chaves para quem for rodar o projeto.
 !.env.example
+
+# Artefatos intermediários da geração do PDF
+docs/.numerado.pdf
+docs/.limpo.pdf
+docs/.passagem.txt
