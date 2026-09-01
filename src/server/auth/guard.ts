@@ -1,4 +1,3 @@
-import { bearer } from "@elysiajs/bearer"
 import { Elysia } from "elysia"
 import { ForbiddenError, UnauthenticatedError } from "@/server/lib/errors"
 import { type AccessTokenClaims, verifyAccessToken } from "./jwt"
@@ -20,54 +19,73 @@ import type { Scope } from "./scopes"
  * sendo pedido. A macro não pode fazê-los, e é importante que isso esteja
  * escrito: um guard que valida token e escopo dá a sensação de que a rota está
  * protegida, quando o que falta — a posse — é justamente o buraco do BOLA.
- * Token válido prova identidade, nunca propriedade.
+ * Token válido prova identidade, nunca prova propriedade.
  *
  * A distinção 401/403 é deliberada: 401 é "não sei quem você é", 403 é "sei
  * quem você é e não pode". Devolver 401 no segundo caso faria o cliente tentar
  * autenticar de novo à toa.
- *
- * A extração do token fica com o `@elysiajs/bearer`, que registra um `derive`
- * global. Ler `headers` direto no `resolve` da macro não funciona em
- * produção: o Elysia decide por análise estática quais campos do contexto
- * montar, e no modo compilado não enxerga o uso ali dentro — `headers` chega
- * `undefined` e o 401 vira um TypeError disfarçado de 500. Em desenvolvimento
- * o modo é dinâmico e o problema não aparece.
  */
-export const authGuard = new Elysia({ name: "auth-guard" })
-  .use(bearer())
-  .macro({
-    auth(requiredScope: Scope | boolean) {
-      if (!requiredScope) {
-        return {}
-      }
 
-      return {
-        async resolve({
-          bearer: token,
-        }: {
-          bearer?: string
-        }): Promise<{ auth: AccessTokenClaims }> {
-          if (!token) {
-            throw new UnauthenticatedError()
-          }
+/**
+ * Extrai o token do header, direto do `request`.
+ *
+ * Não usa o `@elysiajs/bearer`, e a razão é concreta. O plugin registra um
+ * `derive` global que, quando não encontra o header, cai num fallback de query
+ * string (`?access_token=`, previsto na RFC 6750). No modo compilado — o de
+ * produção — o Elysia decide por análise estática quais campos do contexto
+ * montar, e `query` só é materializado nas rotas que declaram um schema para
+ * ele. Nas demais, o fallback estourava `TypeError` e toda requisição sem
+ * `Authorization` virava 500 em vez de 401. Foram seis das oito rotas.
+ *
+ * Ler do `request` não depende dessa análise, e de quebra fecha o caminho da
+ * query string: token em URL vaza para log de acesso, histórico do navegador e
+ * cabeçalho `Referer`. O contrato deste projeto especifica apenas o header.
+ */
+function bearerToken(request: Request): string | null {
+  const header = request.headers.get("authorization")
 
-          const claims = await verifyAccessToken(token)
+  if (!header?.startsWith("Bearer ")) {
+    return null
+  }
 
-          if (
-            typeof requiredScope === "string" &&
-            !claims.scopes.includes(requiredScope)
-          ) {
-            throw new ForbiddenError()
-          }
+  return header.slice("Bearer ".length).trim() || null
+}
 
-          return { auth: claims }
-        },
-        detail: {
-          security: [{ bearerAuth: [] }],
-          ...(typeof requiredScope === "string"
-            ? { "x-required-scope": requiredScope }
-            : {}),
-        },
-      }
-    },
-  })
+export const authGuard = new Elysia({ name: "auth-guard" }).macro({
+  auth(requiredScope: Scope | boolean) {
+    if (!requiredScope) {
+      return {}
+    }
+
+    return {
+      async resolve({
+        request,
+      }: {
+        request: Request
+      }): Promise<{ auth: AccessTokenClaims }> {
+        const token = bearerToken(request)
+
+        if (!token) {
+          throw new UnauthenticatedError()
+        }
+
+        const claims = await verifyAccessToken(token)
+
+        if (
+          typeof requiredScope === "string" &&
+          !claims.scopes.includes(requiredScope)
+        ) {
+          throw new ForbiddenError()
+        }
+
+        return { auth: claims }
+      },
+      detail: {
+        security: [{ bearerAuth: [] }],
+        ...(typeof requiredScope === "string"
+          ? { "x-required-scope": requiredScope }
+          : {}),
+      },
+    }
+  },
+})
