@@ -65,6 +65,9 @@ export async function exportUserData(
         termsVersion: user.consentTermsVersion,
         recordedAt: user.consentRecordedAt,
       },
+      // Dado fornecido pelo titular, e portanto parte do que ele tem direito a
+      // levar embora.
+      alertsWebhookUrl: user.alertsWebhookUrl,
     },
     assets: assets.map((asset) => ({
       ticker: asset.ticker,

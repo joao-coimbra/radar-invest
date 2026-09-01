@@ -14,6 +14,7 @@ import {
   alertsRepository,
 } from "@/server/repositories/alerts.repository"
 import { quotesRepository } from "@/server/repositories/quotes.repository"
+import { usersRepository } from "@/server/repositories/users.repository"
 import { thresholdBreached } from "./market.service"
 
 /**
@@ -89,42 +90,13 @@ function summarize(alerts: CreateAlertInput[]): string {
   return [header, ...lines].join("\n").slice(0, MAX_MESSAGE_LENGTH)
 }
 
-/**
- * Notifica o canal externo. Falha aqui não derruba o ciclo.
- *
- * O alerta já está gravado e já aparece no painel quando esta função é
- * chamada; o webhook é o canal, não o alerta. Deixar a sincronização inteira
- * falhar porque um endpoint de terceiro caiu perderia as cotações coletadas.
- *
- * O corpo carrega três representações do mesmo evento, de propósito: `content`
- * é o campo que o Discord renderiza, `text` é o do Slack, e `alerts` é o dado
- * estruturado para qualquer consumidor programático. Assim o mesmo endpoint
- * serve aos três sem o servidor precisar saber para onde está mandando —
- * detectar o destino pela URL seria adivinhação que quebra no primeiro
- * self-hosted.
- */
-async function notify(
-  alerts: CreateAlertInput[]
-): Promise<{ attempted: boolean; delivered: boolean }> {
-  // Sem webhook configurado nada é enviado, e `notified` precisa refletir
-  // isso. Marcar como notificado um alerta que não saiu de lugar nenhum
-  // colocaria uma afirmação falsa no banco — e é justamente essa coluna que
-  // alguém consultaria para saber por que o cliente não foi avisado.
-  if (!env.ALERTS_WEBHOOK_URL || alerts.length === 0) {
-    return { attempted: false, delivered: false }
-  }
-
+/** POST com timeout. Devolve se entregou. Nunca lança. */
+async function post(url: string, payload: unknown): Promise<boolean> {
   try {
-    const response = await fetch(env.ALERTS_WEBHOOK_URL, {
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: summarize(alerts),
-        text: summarize(alerts),
-        source: "radar-invest",
-        generatedAt: new Date().toISOString(),
-        alerts,
-      }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(5000),
     })
 
@@ -133,15 +105,116 @@ async function notify(
       // mal configurado vira só "não entregou".
       const body = await response.text().catch(() => "")
       console.error(
-        `[radar-invest] webhook recusou o alerta: HTTP ${response.status} ${body.slice(0, 200)}`
+        `[radar-invest] webhook recusou: HTTP ${response.status} ${body.slice(0, 200)}`
       )
     }
 
-    return { attempted: true, delivered: response.ok }
+    return response.ok
   } catch (error) {
-    console.error("[radar-invest] webhook de alerta falhou:", error)
-    return { attempted: true, delivered: false }
+    console.error("[radar-invest] webhook falhou:", error)
+    return false
   }
+}
+
+/**
+ * Notifica cada titular no **canal dele**, com os alertas **da carteira dele**.
+ *
+ * O canal é por usuário, e não uma URL única da aplicação, porque um webhook
+ * global entregaria os alertas de todo mundo no mesmo lugar: o assessor A
+ * descobriria quais ativos o assessor B acompanha e com que limite. Isso
+ * anularia, no último passo do fluxo, o mesmo isolamento de carteira que a API
+ * defende em toda rota. Vazamento no canal de saída é vazamento igual.
+ *
+ * O corpo carrega três representações do mesmo evento, de propósito: `content`
+ * é o campo que o Discord renderiza, `text` é o do Slack, e `alerts` é o dado
+ * estruturado para consumo programático. Assim a mesma URL serve aos três sem
+ * o servidor precisar saber o destino — detectá-lo pela URL seria adivinhação
+ * que quebra no primeiro self-hosted.
+ *
+ * Falha aqui não derruba o ciclo. O alerta já está gravado e já aparece no
+ * painel; o webhook é o canal, não o alerta.
+ */
+async function notify(
+  alerts: CreateAlertInput[]
+): Promise<{ deliveredFor: Set<string>; failures: number }> {
+  const deliveredFor = new Set<string>()
+  let failures = 0
+
+  if (alerts.length === 0) {
+    return { deliveredFor, failures }
+  }
+
+  const byOwner = new Map<string, CreateAlertInput[]>()
+
+  for (const alert of alerts) {
+    const list = byOwner.get(alert.ownerId) ?? []
+    list.push(alert)
+    byOwner.set(alert.ownerId, list)
+  }
+
+  for (const [ownerId, ownerAlerts] of byOwner) {
+    const owner = await usersRepository.findById(ownerId)
+
+    // Sem canal configurado nada é enviado, e `notified` precisa refletir
+    // isso. Marcar como notificado um alerta que não saiu de lugar nenhum
+    // colocaria uma afirmação falsa no banco — e é justamente essa coluna que
+    // alguém consultaria para saber por que o cliente não foi avisado.
+    if (!owner?.alertsWebhookUrl) {
+      continue
+    }
+
+    const message = summarize(ownerAlerts)
+
+    const ok = await post(owner.alertsWebhookUrl, {
+      content: message,
+      text: message,
+      source: "radar-invest",
+      generatedAt: new Date().toISOString(),
+      alerts: ownerAlerts.map(({ ownerId: _owner, ...alert }) => alert),
+    })
+
+    if (ok) {
+      deliveredFor.add(ownerId)
+    } else {
+      failures++
+    }
+  }
+
+  return { deliveredFor, failures }
+}
+
+/**
+ * Canal de operação, opcional e global.
+ *
+ * Recebe apenas **contagens** — nenhum ticker, nenhum titular, nenhum limite.
+ * Serve a quem opera o sistema para saber que o ciclo rodou e como foi, sem
+ * expor a carteira de ninguém. É a diferença entre observabilidade e
+ * bisbilhotice.
+ */
+async function reportCycle(summary: {
+  assetsProcessed: number
+  alertsGenerated: number
+  recordsPersisted: number
+  externalCalls: number
+}): Promise<void> {
+  if (!env.ALERTS_WEBHOOK_URL) {
+    return
+  }
+
+  const message =
+    `RadarInvest — ciclo concluído: ${summary.assetsProcessed} ativo(s), ` +
+    `${summary.alertsGenerated} alerta(s), ` +
+    `${summary.recordsPersisted} cotação(ões) gravada(s), ` +
+    `${summary.externalCalls} chamada(s) externa(s)`
+
+  await post(env.ALERTS_WEBHOOK_URL, {
+    content: message,
+    text: message,
+    source: "radar-invest",
+    kind: "cycle-summary",
+    generatedAt: new Date().toISOString(),
+    ...summary,
+  })
 }
 
 export async function runSync(): Promise<SyncRunResult> {
@@ -265,14 +338,18 @@ export async function runSync(): Promise<SyncRunResult> {
 
   const notification = await notify(newAlerts)
 
-  // Só conta como falha se houve tentativa. Webhook não configurado é
-  // configuração ausente, não indisponibilidade de terceiro.
-  if (notification.attempted && !notification.delivered) {
-    upstreamFailures++
-  }
+  // Só conta como falha quem tinha canal e não recebeu. Canal não configurado
+  // é configuração ausente, não indisponibilidade de terceiro.
+  upstreamFailures += notification.failures
 
+  // `notified` é por alerta, porque a entrega é por titular: um assessor com
+  // canal configurado recebe, outro sem canal não — e a coluna precisa dizer a
+  // verdade sobre cada linha.
   await alertsRepository.createMany(
-    newAlerts.map((alert) => ({ ...alert, notified: notification.delivered }))
+    newAlerts.map((alert) => ({
+      ...alert,
+      notified: notification.deliveredFor.has(alert.ownerId),
+    }))
   )
 
   // Regra 4: registre chamadas feitas e evitadas por cache.
@@ -283,11 +360,20 @@ export async function runSync(): Promise<SyncRunResult> {
       `${persisted.skipped} cotações inalteradas não gravadas`
   )
 
-  return finish({
+  const result = finish({
     assetsProcessed: assets.length,
     recordsPersisted: persisted.persisted,
     alertsGenerated: newAlerts.length,
     externalCalls: externalCalls + (airtable.stats().calls - callsBefore),
     upstreamFailures,
   })
+
+  await reportCycle({
+    assetsProcessed: result.assetsProcessed,
+    alertsGenerated: result.alertsGenerated,
+    recordsPersisted: result.recordsPersisted,
+    externalCalls: result.externalCalls,
+  })
+
+  return result
 }

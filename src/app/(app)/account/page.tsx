@@ -1,6 +1,7 @@
 import { formatDateTime } from "@/lib/format"
 import { requireSessionUser } from "@/server/auth/current-session"
 import { EraseForm } from "./erase-form"
+import { WebhookForm } from "./webhook-form"
 
 export const dynamic = "force-dynamic"
 
@@ -54,6 +55,23 @@ export default async function AccountPage() {
             </div>
           ))}
         </dl>
+      </section>
+
+      <section className="grid gap-3">
+        <h2 className="font-display text-lg font-bold tracking-tight">
+          Onde receber os alertas
+        </h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Quando um ativo da sua carteira rompe o limite, o alerta aparece no
+          painel. Se você informar um canal, ele também é enviado para lá — com
+          ticker, direção, variação e o limite rompido, para você decidir sem
+          abrir o sistema.
+        </p>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          O canal é seu, não da aplicação. Você recebe apenas os alertas da sua
+          carteira, e ninguém mais recebe os seus.
+        </p>
+        <WebhookForm current={user.alertsWebhookUrl} />
       </section>
 
       <section className="grid gap-3">

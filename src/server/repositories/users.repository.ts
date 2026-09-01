@@ -25,6 +25,8 @@ export interface UserRecord {
   consentAccepted: boolean
   consentTermsVersion: string
   consentRecordedAt: string | null
+  /** Canal pessoal de alertas. Cada titular recebe só a própria carteira. */
+  alertsWebhookUrl: string | null
   createdAt: string
 }
 
@@ -37,6 +39,7 @@ interface UserFields {
   consentAccepted?: boolean
   consentTermsVersion?: string
   consentRecordedAt?: string
+  alertsWebhookUrl?: string
   createdAt?: string
 }
 
@@ -52,6 +55,7 @@ function toUser(record: AirtableRecord<UserFields>): UserRecord {
     consentAccepted: fields.consentAccepted === true,
     consentTermsVersion: fields.consentTermsVersion ?? "",
     consentRecordedAt: fields.consentRecordedAt ?? null,
+    alertsWebhookUrl: fields.alertsWebhookUrl || null,
     createdAt: fields.createdAt ?? "",
   }
 }
@@ -108,6 +112,18 @@ export const usersRepository = {
     ])
 
     return toUser(record)
+  },
+
+  /**
+   * Define ou limpa o canal pessoal de alertas.
+   *
+   * String vazia apaga o campo: sem canal, o alerta continua sendo gravado e
+   * exibido no painel, apenas marcado como não notificado.
+   */
+  async setAlertsWebhook(id: string, url: string): Promise<void> {
+    await airtable.update<UserFields>(TABLES.users, [
+      { id, fields: { alertsWebhookUrl: url } },
+    ])
   },
 
   /** Eliminação do Art. 18, VI. Remove a conta em si. */

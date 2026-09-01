@@ -78,6 +78,12 @@ const TABLES: TableSpec[] = [
         description: "scrypt. Nunca é devolvido em resposta de leitura.",
       },
       { name: "role", ...select("ASSESSOR", "ADMIN") },
+      {
+        name: "alertsWebhookUrl",
+        type: "url",
+        description:
+          "Canal pessoal de alertas. Cada titular recebe apenas os alertas da própria carteira.",
+      },
       { name: "consentAccepted", ...checkbox },
       { name: "consentTermsVersion", ...text },
       { name: "consentRecordedAt", ...dateTime },

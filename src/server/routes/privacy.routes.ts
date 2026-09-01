@@ -28,6 +28,7 @@ const exportSchema = t.Object({
       termsVersion: t.String(),
       recordedAt: t.Union([t.String(), t.Null()]),
     }),
+    alertsWebhookUrl: t.Union([t.String(), t.Null()]),
   }),
   assets: t.Array(t.Record(t.String(), t.Unknown())),
   alerts: t.Array(t.Record(t.String(), t.Unknown())),

@@ -214,6 +214,42 @@ export async function runSyncAction(
   }
 }
 
+/**
+ * Define o canal pessoal de alertas.
+ *
+ * É por titular, e não uma URL única da aplicação: um canal global entregaria
+ * os alertas de todo mundo no mesmo lugar, e um assessor descobriria quais
+ * ativos o outro acompanha.
+ */
+export async function saveWebhookAction(
+  _previous: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const user = await requireSessionUser()
+  const url = String(formData.get("alertsWebhookUrl") ?? "").trim()
+
+  if (url && !/^https:\/\/\S+$/i.test(url)) {
+    return {
+      error:
+        "Informe uma URL https válida, ou deixe em branco para não receber notificações.",
+    }
+  }
+
+  try {
+    await usersRepository.setAlertsWebhook(user.id, url)
+  } catch (error) {
+    return toFormError(error)
+  }
+
+  revalidatePath("/account")
+
+  return {
+    ok: url
+      ? "Canal salvo. Os próximos alertas da sua carteira serão enviados para lá."
+      : "Canal removido. Seus alertas continuam aparecendo no painel.",
+  }
+}
+
 /** Eliminação — Art. 18, VI. Encerra a sessão junto: a conta deixou de existir. */
 export async function eraseAccountAction(): Promise<void> {
   const user = await requireSessionUser()
