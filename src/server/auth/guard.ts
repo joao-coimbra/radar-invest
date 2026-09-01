@@ -1,5 +1,6 @@
 import { Elysia } from "elysia"
 import { ForbiddenError, UnauthenticatedError } from "@/server/lib/errors"
+import { limitarPorUsuario } from "@/server/lib/rate-limit"
 import { type AccessTokenClaims, verifyAccessToken } from "./jwt"
 import type { Scope } from "./scopes"
 
@@ -70,6 +71,11 @@ export const authGuard = new Elysia({ name: "auth-guard" }).macro({
         }
 
         const claims = await verifyAccessToken(token)
+
+        // Depois de identificar, antes de autorizar: a contagem precisa de uma
+        // chave, e a chave é o usuário. Contar antes da validação do token
+        // deixaria qualquer um consumir a cota alheia enviando lixo.
+        limitarPorUsuario(claims.sub)
 
         if (
           typeof requiredScope === "string" &&

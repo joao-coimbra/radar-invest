@@ -8,6 +8,7 @@ import {
   rotateSession,
 } from "@/server/auth/session"
 import { isProduction } from "@/server/lib/env"
+import { limitarPorEmail } from "@/server/lib/rate-limit"
 import {
   EmailAlreadyRegisteredError,
   InvalidCredentialsError,
@@ -72,6 +73,8 @@ export const authRoutes = new Elysia({ prefix: "/auth", tags: ["Auth"] })
   .post(
     "/register",
     async ({ body, cookie, set }) => {
+      limitarPorEmail(body.email)
+
       // O consentimento é condição para criar a conta, não caixa de formulário.
       // Sem aceite não há base legal para o tratamento (Art. 7º, I).
       if (!body.consent.accepted) {
@@ -130,6 +133,8 @@ export const authRoutes = new Elysia({ prefix: "/auth", tags: ["Auth"] })
   .post(
     "/login",
     async ({ body, cookie }) => {
+      limitarPorEmail(body.email)
+
       const user = await usersRepository.findByEmail(body.email)
 
       // A verificação da senha roda mesmo sem usuário encontrado? Não: aqui o

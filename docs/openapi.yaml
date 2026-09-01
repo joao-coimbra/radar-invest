@@ -17,7 +17,7 @@ info:
 
   contact:
     name: RadarInvest
-    url: https://github.com/SEU-USUARIO/radar-invest
+    url: https://github.com/joao-coimbra/radar-invest
 
 servers:
   - url: http://localhost:3000/api/v1
@@ -101,9 +101,31 @@ x-cache-policy:
 
 x-rate-limit-policy:
   strategy: fixed-window
-  key: authenticated-user
+  rationale: |
+    Janela fixa por ser explicável: a contagem zera em instantes previsíveis e
+    o cliente sabe quanto falta pelo header Retry-After. Janela deslizante
+    distribui melhor a carga na virada, mas exige guardar o horário de cada
+    requisição, o que troca simplicidade por memória sem ganho proporcional no
+    volume deste projeto.
+  keys:
+    - scope: rotas autenticadas
+      key: identificador do usuário extraído do token
+      rationale: |
+        O limite acompanha a identidade e não o endereço de rede. Trocar de
+        rede não devolve cota, e vários assessores atrás do mesmo IP do
+        escritório não disputam entre si.
+    - scope: /auth/register e /auth/login
+      key: e-mail informado na requisição
+      rationale: |
+        Aqui ainda não existe identidade, e o alvo de um ataque é uma conta
+        específica. Contar por e-mail limita o quanto uma conta pode ser
+        martelada sem recorrer ao IP, que este projeto decidiu não coletar.
   limit: 60
   windowSeconds: 60
+  scope: |
+    A contagem vive em memória e vale por instância do processo. Em serverless,
+    duas instâncias somam o dobro do limite. Suficiente para o volume deste
+    projeto; um teto rígido exigiria armazenamento compartilhado.
   upstreamBehavior: |
     Ao receber 429 das APIs externas, o backend aplica espera exponencial e
     devolve 502 ao consumidor caso as tentativas se esgotem.
@@ -112,7 +134,13 @@ x-lgpd:
   legalBasis: consent
   minimization: |
     As respostas devolvem apenas os campos necessários à tela. O e-mail do
-    responsável é mascarado na leitura.
+    responsável é mascarado na leitura. A tabela de sessões não guarda IP nem
+    user-agent: sem finalidade definida, o dado não é coletado.
+  outboundIsolation: |
+    O canal de alerta é configurado por titular, e não uma URL única da
+    aplicação. Um canal global entregaria os alertas de todos no mesmo lugar,
+    anulando no último passo do fluxo o mesmo isolamento de carteira que a API
+    defende em toda rota.
   implementedRights:
     - article: "Art. 18, VI"
       right: erasure
@@ -211,9 +239,14 @@ paths:
       summary: Rotacionar a sessão e emitir novo access token
       description: |
         Troca o refresh token por um par novo. O refresh token não viaja no
-        corpo: ele vive num cookie `httpOnly`, `Secure`, `SameSite=Strict`,
-        restrito a `Path=/api/v1/auth`. JavaScript da página nunca o alcança,
-        o que retira o roubo por XSS da mesa.
+        corpo: ele vive num cookie `httpOnly`, `Secure` em produção,
+        `SameSite=Lax` e `Path=/`. JavaScript da página nunca o alcança, o que
+        retira o roubo por XSS da mesa.
+
+        O escopo do cookie é `/` e não `/api/v1/auth` porque a interface é
+        renderizada no servidor e precisa do cookie nas navegações de página,
+        que um path restrito não alcançaria. `SameSite=Lax` continua barrando
+        POST vindo de outro site, que é o vetor de CSRF que importa aqui.
 
         Ele também não é um JWT. É um valor opaco de 32 bytes aleatórios,
         guardado como hash SHA-256 — e não bcrypt ou argon2, porque hash lento
@@ -492,6 +525,7 @@ paths:
       operationId: runSync
       security:
         - bearerAuth: []
+        - cronSecret: []
       x-required-scope: syncs.execute
       responses:
         "202":
@@ -628,6 +662,21 @@ components:
         A ausência ou invalidez do token resulta em 401. A falta do escopo
         necessário resulta em 403.
 
+    cronSecret:
+      type: apiKey
+      in: header
+      name: x-cron-secret
+      description: |
+        Segredo compartilhado com o agendador. Autoriza apenas o disparo do
+        ciclo de sincronização e nada além dele.
+
+        Existe porque os dois chamadores da operação têm naturezas diferentes:
+        o ADMIN é uma pessoa com sessão, e o agendador é um processo sem
+        sessão, incapaz de autenticar de forma interativa ou de rotacionar
+        credencial. Dar uma conta de ADMIN ao agendador significaria guardar,
+        num secret de integração contínua, uma credencial capaz de consultar
+        carteiras e exportar dados pessoais.
+
   parameters:
     Ticker:
       name: ticker
@@ -643,11 +692,14 @@ components:
       name: id
       in: path
       required: true
-      description: Identificador do titular dos dados
+      description: |
+        Identificador do titular. É o id do registro no Airtable, e não um UUID:
+        usar o identificador nativo do banco evita manter uma segunda chave e
+        uma consulta extra a cada busca por id.
       schema:
         type: string
-        format: uuid
-      example: 3f2b9c7e-5a41-4d0e-9c2f-1b8d6e4a7c30
+        pattern: '^rec[A-Za-z0-9]{14}$'
+      example: recmMqGZXxFu7bRxz
 
   responses:
     BadRequest:
@@ -839,7 +891,9 @@ components:
       properties:
         id:
           type: string
-          format: uuid
+          pattern: '^rec[A-Za-z0-9]{14}$'
+          description: Identificador do registro no Airtable
+          example: recmMqGZXxFu7bRxz
         name:
           type: string
           example: Ana Ribeiro
@@ -966,12 +1020,13 @@ components:
           example: 3.5
         ownerId:
           type: string
-          format: uuid
+          pattern: '^rec[A-Za-z0-9]{14}$'
           readOnly: true
           description: |
-            Proprietário do registro. É contra este campo que o código compara
-            a identidade do token antes de devolver o recurso.
-          example: 3f2b9c7e-5a41-4d0e-9c2f-1b8d6e4a7c30
+            Proprietário do registro, no formato de id do Airtable. É contra
+            este campo que o código compara a identidade do token antes de
+            devolver o recurso.
+          example: recmMqGZXxFu7bRxz
         ownerEmail:
           type: string
           readOnly: true
@@ -1130,7 +1185,9 @@ components:
       properties:
         id:
           type: string
-          format: uuid
+          pattern: '^rec[A-Za-z0-9]{14}$'
+          description: Identificador do registro no Airtable
+          example: recmMqGZXxFu7bRxz
         ticker:
           type: string
           example: PETR4
@@ -1184,6 +1241,14 @@ components:
         upstreamFailures:
           type: integer
           example: 0
+        skippedReason:
+          type: string
+          nullable: true
+          description: |
+            Presente quando o ciclo encerrou antes de coletar. Fora do pregão
+            nenhuma API externa é chamada, e a resposta continua sendo 202: o
+            ciclo rodou e concluiu que não havia o que fazer, o que não é erro.
+          example: Fora do horário de pregão da B3.
 
     UserDataExport:
       type: object
@@ -1197,7 +1262,8 @@ components:
           properties:
             id:
               type: string
-              format: uuid
+              pattern: '^rec[A-Za-z0-9]{14}$'
+              example: recmMqGZXxFu7bRxz
             name:
               type: string
             email:
@@ -1208,6 +1274,13 @@ components:
               $ref: "#/components/schemas/Role"
             consent:
               $ref: "#/components/schemas/Consent"
+            alertsWebhookUrl:
+              type: string
+              nullable: true
+              description: |
+                Canal pessoal de alertas informado pelo titular. Entra na
+                exportação por ser dado fornecido por ele.
+              example: https://discord.com/api/webhooks/000/xxx
         assets:
           type: array
           items:
