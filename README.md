@@ -605,7 +605,10 @@ GitHub Actions e não cron da Vercel porque o plano Hobby executa cron **uma vez
 por dia** — um monitor de mercado com essa frequência não monitora nada. E o
 workflow no repositório é artefato revisável, não configuração invisível.
 
-O botão *Run workflow* na aba Actions dispara o ciclo na hora.
+O cron automático está desligado: o projeto já foi validado e o arquivo fica
+no repositório como amostra. O botão *Run workflow* na aba Actions ainda
+dispara o ciclo na hora; para religar o agendamento a cada 15 minutos no
+pregão, descomente o bloco `schedule` no YAML.
 
 ---
 
