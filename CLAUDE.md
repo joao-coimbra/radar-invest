@@ -228,7 +228,9 @@ escopo `syncs.execute`, ou o header `x-cron-secret` para o agendador.
 
 O agendador é um workflow do GitHub Actions em `.github/workflows/`, e não o
 cron da Vercel, cujo plano gratuito executa uma vez por dia. Ele precisa dos
-secrets `APP_URL` e `CRON_SECRET` no repositório.
+secrets `APP_URL` e `CRON_SECRET` no repositório. O cron automático está
+desligado (projeto já validado); o arquivo permanece como amostra e ainda
+aceita disparo manual via `workflow_dispatch`.
 
 Regras do ciclo:
 

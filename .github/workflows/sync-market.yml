@@ -1,11 +1,13 @@
 name: Sincronização de mercado
 
-# Agendador do ciclo de coleta. Roda de 15 em 15 minutos durante o pregão da
-# B3, em dias úteis.
+# Agendador do ciclo de coleta. Mantido no repositório como amostra do que foi
+# feito na disciplina — o cron automático está desligado porque o projeto já
+# foi validado e não precisa mais rodar sozinho em produção.
 #
-# O cron do GitHub usa UTC. Brasília é UTC−3, então o pregão das 10h às 18h
-# equivale a 13h–21h UTC; `13-20` cobre até 20:45 UTC = 17:45 em Brasília, que
-# é a última janela ainda dentro do pregão.
+# Para reativar o agendamento a cada 15 minutos no pregão da B3 (dias úteis),
+# descomente o bloco `schedule` abaixo. O cron do GitHub usa UTC: Brasília é
+# UTC−3, então o pregão das 10h às 18h equivale a 13h–21h UTC; `13-20` cobre
+# até 20:45 UTC = 17:45 em Brasília, última janela ainda dentro do pregão.
 #
 # Fora dessa janela o próprio backend encerra o ciclo sem chamar nenhuma API
 # externa — a checagem em `isMarketOpen()` é a autoridade. O agendamento aqui
@@ -13,10 +15,10 @@ name: Sincronização de mercado
 # endpoint aberto a disparos manuais fora de hora.
 
 on:
-  schedule:
-    - cron: "*/15 13-20 * * 1-5"
-  # Permite disparar pelo botão "Run workflow" na aba Actions — útil para
-  # demonstrar o ciclo ao vivo sem esperar o próximo agendamento.
+  # schedule:
+  #   - cron: "*/15 13-20 * * 1-5"
+  # Disparo manual pelo botão "Run workflow" na aba Actions — útil para
+  # demonstrar o ciclo ao vivo sem o agendamento automático.
   workflow_dispatch:
 
 # Se um ciclo ainda estiver rodando quando o próximo for agendado, o novo
